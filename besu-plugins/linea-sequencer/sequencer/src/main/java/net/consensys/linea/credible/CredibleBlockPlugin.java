@@ -61,7 +61,15 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
       )
       private String rpcEndpoint;
 
+      @CommandLine.Option(
+          names = {"--plugin-credible-sidecar-processing-timeout-ms"},
+          description = "Timeout in ms for the Sidecar RPC when waiting for the processing of getTransactions",
+          defaultValue = "50"
+      )
+      private int processingTimeout = 50;
+
       public String getRpcEndpoint() { return rpcEndpoint; }
+      public int getProcessingTimeout() { return processingTimeout; }
   }
 
   private static CrediblePluginConfiguration config = null;

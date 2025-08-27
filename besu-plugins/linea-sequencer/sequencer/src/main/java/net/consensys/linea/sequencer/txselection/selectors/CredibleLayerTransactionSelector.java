@@ -28,14 +28,16 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
   private static final Logger LOG = LoggerFactory.getLogger(CredibleLayerTransactionSelector.class);
   
   private final String rpcUrl;
+  private final int processingTimeout;
   private SidecarClient sidecarClient;
   
   // Store pending getTransactions futures by transaction hash
   private final Map<String, CompletableFuture<GetTransactionsResponse>> pendingTxRequests = 
         new ConcurrentHashMap<>();
 
-  public CredibleLayerTransactionSelector(final String rpcUrl) {
+  public CredibleLayerTransactionSelector(final String rpcUrl, final int processingTimeout) {
     this.rpcUrl = rpcUrl;
+    this.processingTimeout = processingTimeout;
     this.sidecarClient = new SidecarClient.Builder()
         .baseUrl(rpcUrl)
         .build();
@@ -105,7 +107,7 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
           LOG.debug("Awaiting result for {}", txHash);
           
           // Wait for long-polling response
-          GetTransactionsResponse response = future.get(1, TimeUnit.SECONDS);
+          GetTransactionsResponse response = future.get(this.processingTimeout, TimeUnit.MILLISECONDS);
           
           // Process the response to determine if transaction is valid
           if (response.getResults() == null || response.getResults().isEmpty()) {
