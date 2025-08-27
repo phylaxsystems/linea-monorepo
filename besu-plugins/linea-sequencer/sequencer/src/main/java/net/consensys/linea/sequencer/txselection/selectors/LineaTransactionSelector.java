@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import net.consensys.linea.bundles.TransactionBundle;
 import net.consensys.linea.config.LineaProfitabilityConfiguration;
@@ -32,6 +33,7 @@ import org.hyperledger.besu.plugin.services.BlockchainService;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
 import org.hyperledger.besu.plugin.services.txselection.SelectorsStateManager;
 import org.hyperledger.besu.plugin.services.txselection.TransactionEvaluationContext;
+import net.consensys.linea.credible.CredibleBlockPlugin;
 
 /** Class for transaction selection using a list of selectors. */
 @Slf4j
@@ -50,7 +52,8 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
       final LineaProfitabilityConfiguration profitabilityConfiguration,
       final LineaTracerConfiguration tracerConfiguration,
       final Optional<JsonRpcManager> rejectedTxJsonRpcManager,
-      final Optional<HistogramMetrics> maybeProfitabilityMetrics) {
+      final Optional<HistogramMetrics> maybeProfitabilityMetrics,
+      final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration) {
     this.rejectedTxJsonRpcManager = rejectedTxJsonRpcManager;
 
     // only report rejected transaction selection result from TraceLineLimitTransactionSelector
@@ -67,7 +70,8 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
             l1L2BridgeConfiguration,
             profitabilityConfiguration,
             tracerConfiguration,
-            maybeProfitabilityMetrics);
+            maybeProfitabilityMetrics,
+            maybeCredibleConfiguration);
   }
 
   /**
@@ -88,7 +92,8 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
       final LineaL1L2BridgeSharedConfiguration l1L2BridgeConfiguration,
       final LineaProfitabilityConfiguration profitabilityConfiguration,
       final LineaTracerConfiguration tracerConfiguration,
-      final Optional<HistogramMetrics> maybeProfitabilityMetrics) {
+      final Optional<HistogramMetrics> maybeProfitabilityMetrics,
+      final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration) {
 
     traceLineLimitTransactionSelector =
         new TraceLineLimitTransactionSelector(
@@ -98,20 +103,23 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
             l1L2BridgeConfiguration,
             tracerConfiguration);
 
-    List<PluginTransactionSelector> selectors =
-        List.of(
-            new MaxBlockCallDataTransactionSelector(
-                selectorsStateManager, txSelectorConfiguration.maxBlockCallDataSize()),
-            new MaxBlockGasTransactionSelector(
-                selectorsStateManager, txSelectorConfiguration.maxGasPerBlock()),
-            new ProfitableTransactionSelector(
-                blockchainService, profitabilityConfiguration, maybeProfitabilityMetrics),
-            new BundleConstraintTransactionSelector(),
-            new MaxBundleGasPerBlockTransactionSelector(
-                selectorsStateManager, txSelectorConfiguration.maxBundleGasPerBlock()),
-            traceLineLimitTransactionSelector);
+    Stream.Builder<PluginTransactionSelector> builder = Stream.builder();
 
-    return selectors;
+    maybeCredibleConfiguration.ifPresent(cfg ->
+        builder.add(new CredibleLayerTransactionSelector(cfg.getRpcEndpoint(), cfg.getProcessingTimeout())));
+
+    builder.add(new MaxBlockCallDataTransactionSelector(
+        selectorsStateManager, txSelectorConfiguration.maxBlockCallDataSize()));
+    builder.add(new MaxBlockGasTransactionSelector(
+        selectorsStateManager, txSelectorConfiguration.maxGasPerBlock()));
+    builder.add(new ProfitableTransactionSelector(
+        blockchainService, profitabilityConfiguration, maybeProfitabilityMetrics));
+    builder.add(new BundleConstraintTransactionSelector());
+    builder.add(new MaxBundleGasPerBlockTransactionSelector(
+        selectorsStateManager, txSelectorConfiguration.maxBundleGasPerBlock()));
+    builder.add(traceLineLimitTransactionSelector);
+
+    return builder.build().toList();
   }
 
   /**
