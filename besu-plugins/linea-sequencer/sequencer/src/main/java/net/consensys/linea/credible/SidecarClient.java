@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Fixed Sidecar JSON RPC client
+ * Sidecar JSON RPC client
  * Requires dependencies: okhttp3 and jackson-databind
  */
 public class SidecarClient {
@@ -168,7 +168,7 @@ public class SidecarClient {
                 .build();
     }
     
-    // Fixed: Synchronous call with generic result type
+    // Synchronous call with generic result type
     public <T> T call(String method, Object params, TypeReference<T> resultType) throws JsonRpcException {
         JsonRpcResponse<T> response = callForResponse(method, params, resultType);
         
@@ -179,7 +179,7 @@ public class SidecarClient {
         return response.getResult();
     }
     
-    // Fixed: Synchronous call with Class result type
+    // Synchronous call with Class result type
     public <T> T call(String method, Object params, Class<T> resultClass) throws JsonRpcException {
         JsonRpcResponse<T> response = callForResponse(method, params, resultClass);
         
@@ -190,7 +190,7 @@ public class SidecarClient {
         return response.getResult();
     }
     
-    // Fixed: Synchronous call returning raw response with TypeReference
+    // Synchronous call returning raw response with TypeReference
     public <T> JsonRpcResponse<T> callForResponse(String method, Object params, TypeReference<T> resultType) throws JsonRpcException {
         try {
             String requestId = UUID.randomUUID().toString();
@@ -231,7 +231,7 @@ public class SidecarClient {
         }
     }
     
-    // Fixed: Overload for Class-based result type
+    // Overload for Class-based result type
     public <T> JsonRpcResponse<T> callForResponse(String method, Object params, Class<T> resultClass) throws JsonRpcException {
         try {
             String requestId = UUID.randomUUID().toString();
@@ -271,7 +271,7 @@ public class SidecarClient {
         }
     }
     
-    // Fixed: Asynchronous call
+    // Asynchronous call
     public <T> CompletableFuture<T> callAsync(String method, Object params, TypeReference<T> resultType) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -282,7 +282,7 @@ public class SidecarClient {
         });
     }
     
-    // Fixed: Asynchronous call with Class result type
+    // Asynchronous call with Class result type
     public <T> CompletableFuture<T> callAsync(String method, Object params, Class<T> resultClass) {
         return CompletableFuture.supplyAsync(() -> {
             try {
