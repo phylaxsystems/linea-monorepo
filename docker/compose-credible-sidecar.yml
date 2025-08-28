@@ -47,8 +47,6 @@ services:
     depends_on:
       sequencer:
         condition: service_healthy
-      assertion-da:
-        condition: service_healthy
     # Command line arguments for the sidecar
     command:
       - "--chain.transport-url=http://0.0.0.0:9546"
