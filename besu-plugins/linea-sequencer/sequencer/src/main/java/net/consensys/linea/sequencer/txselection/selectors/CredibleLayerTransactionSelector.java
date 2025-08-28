@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.Map;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 public class CredibleLayerTransactionSelector implements PluginTransactionSelector {
   private static final Logger LOG = LoggerFactory.getLogger(CredibleLayerTransactionSelector.class);
@@ -133,9 +134,12 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
           
           LOG.warn("Transaction {} not found in results, but allowing", txHash);
           return TransactionSelectionResult.SELECTED;
-      } catch (Exception e) {
-          LOG.error("Error in transaction postprocessing for {}: {}", txHash, e.getMessage());
-          return TransactionSelectionResult.SELECTED;
-      }
+    } catch (TimeoutException e) {
+        LOG.warn("Fetching result from sidecar timed out {}", txHash);
+        return TransactionSelectionResult.SELECTED;
+    } catch (Exception e) {
+        LOG.error("Error in transaction postprocessing for {}: {}", txHash, e.getMessage());
+        return TransactionSelectionResult.SELECTED;
+    }
   }
 }
