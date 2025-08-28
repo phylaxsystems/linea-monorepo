@@ -28,6 +28,7 @@ import net.consensys.linea.sequencer.txselection.selectors.ProfitableTransaction
 import org.hyperledger.besu.plugin.BesuPlugin;
 import org.hyperledger.besu.plugin.ServiceManager;
 import org.hyperledger.besu.plugin.services.TransactionSelectionService;
+import net.consensys.linea.credible.CredibleBlockPlugin;
 
 /**
  * This class extends the default transaction selection rules used by Besu. It leverages the
@@ -103,6 +104,8 @@ public class LineaTransactionSelectorPlugin extends AbstractLineaRequiredPlugin 
                     metricsSystem))
             : Optional.empty();
 
+    var cliConfig = CredibleBlockPlugin.pluginConfiguration();
+
     transactionSelectionService.registerPluginTransactionSelectorFactory(
         new LineaTransactionSelectorFactory(
             blockchainService,
@@ -113,7 +116,8 @@ public class LineaTransactionSelectorPlugin extends AbstractLineaRequiredPlugin 
             livenessService,
             rejectedTxJsonRpcManager,
             maybeProfitabilityMetrics,
-            bundlePoolService));
+            bundlePoolService,
+            cliConfig));
   }
 
   @Override

@@ -24,7 +24,7 @@ import org.hyperledger.besu.plugin.BesuPlugin;
 import org.hyperledger.besu.plugin.ServiceManager;
 import org.hyperledger.besu.plugin.services.PicoCLIOptions;
 import net.consensys.linea.credible.SidecarClient;
-import net.consensys.linea.credible.BlockEnv;
+import net.consensys.linea.credible.SidecarApiModels.*;
 import lombok.extern.slf4j.Slf4j;
 import picocli.CommandLine;
 
@@ -61,10 +61,18 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
       )
       private String rpcEndpoint;
 
+      @CommandLine.Option(
+          names = {"--plugin-credible-sidecar-processing-timeout-ms"},
+          description = "Timeout in ms for the Sidecar RPC when waiting for the processing of getTransactions",
+          defaultValue = "50"
+      )
+      private int processingTimeout = 50;
+
       public String getRpcEndpoint() { return rpcEndpoint; }
+      public int getProcessingTimeout() { return processingTimeout; }
   }
 
-  private CrediblePluginConfiguration config;
+  private static CrediblePluginConfiguration config = null;
 
   @Override
   public void register(final ServiceManager context) {
@@ -80,6 +88,10 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
       } else {
           log.atError().setMessage("PicoCLI not available").log();
       } 
+  }
+
+  public static Optional<CrediblePluginConfiguration> pluginConfiguration() {
+      return config == null ? Optional.empty() : Optional.of(config);
   }
     
   @Override
@@ -121,16 +133,15 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
       var blockHeader = block.getBlockHeader();
       var blockBody = block.getBlockBody();
 
-      BlockEnv blockEnv = BlockEnv.builder()
-        .number(blockHeader.getNumber())
-        .beneficiary(blockHeader.getCoinbase().toHexString())
-        .timestamp(blockHeader.getTimestamp())
-        .gasLimit(blockHeader.getGasLimit())
-        .baseFee(blockHeader.getBaseFee().map(quantity -> quantity.getAsBigInteger().longValue()).orElse(1L)) // 1 Gwei
-        .difficulty(blockHeader.getDifficulty().getAsBigInteger())
-        .prevrandao(blockHeader.getMixHash().toHexString())
-        .blobExcessGasAndPrice(new BlockEnv.BlobExcessGasAndPrice(100000L, 1000000L))
-        .build();
+      SendBlockEnvRequest blockEnv = new SendBlockEnvRequest(
+        blockHeader.getNumber(),
+        blockHeader.getCoinbase().toHexString(),
+        blockHeader.getTimestamp(),
+        blockHeader.getGasLimit(),
+        blockHeader.getBaseFee().map(quantity -> quantity.toString()).orElse("0"), // 1 Gwei
+        blockHeader.getDifficulty().toString(),
+        blockHeader.getMixHash().toHexString()
+      );
 
       try {
           Map<String, Object> response = this.sidecarClient.call("sendBlockEnv", blockEnv, new TypeReference<Map<String, Object>>() {});

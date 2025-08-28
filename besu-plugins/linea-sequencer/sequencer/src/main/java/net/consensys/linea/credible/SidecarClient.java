@@ -3,6 +3,7 @@ package net.consensys.linea.credible;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
 
@@ -180,15 +181,16 @@ public class SidecarClient {
     
     // Synchronous call with Class result type
     public <T> T call(String method, Object params, Class<T> resultClass) throws JsonRpcException {
-        return call(method, params, new TypeReference<T>() {
-            public Class<T> getRawClass() {
-                return resultClass;
-            }
-        });
+        JsonRpcResponse<T> response = callForResponse(method, params, resultClass);
+        
+        if (response.hasError()) {
+            throw new JsonRpcException(response.getError());
+        }
+        
+        return response.getResult();
     }
     
-    // Synchronous call returning raw response
-    @SuppressWarnings("unchecked")
+    // Synchronous call returning raw response with TypeReference
     public <T> JsonRpcResponse<T> callForResponse(String method, Object params, TypeReference<T> resultType) throws JsonRpcException {
         try {
             String requestId = UUID.randomUUID().toString();
@@ -214,21 +216,53 @@ public class SidecarClient {
                 
                 String responseBody = response.body().string();
                 
-                // Parse as generic JsonRpcResponse first
-                JsonRpcResponse<Object> genericResponse = objectMapper.readValue(responseBody, 
-                    new TypeReference<JsonRpcResponse<Object>>() {});
+                // Create JavaType from TypeReference for proper type handling
+                JavaType responseType = objectMapper.getTypeFactory()
+                    .constructParametricType(JsonRpcResponse.class, 
+                                           objectMapper.getTypeFactory().constructType(resultType));
                 
-                // Create typed response
-                JsonRpcResponse<T> typedResponse = new JsonRpcResponse<>();
-                typedResponse.setJsonrpc(genericResponse.getJsonrpc());
-                typedResponse.setId(genericResponse.getId());
-                typedResponse.setError(genericResponse.getError());
+                // Parse directly to the typed response
+                JsonRpcResponse<T> typedResponse = objectMapper.readValue(responseBody, responseType);
                 
-                // Convert result to proper type if not null and no error
-                if (genericResponse.getResult() != null && !genericResponse.hasError()) {
-                    T convertedResult = objectMapper.convertValue(genericResponse.getResult(), resultType);
-                    typedResponse.setResult(convertedResult);
+                return typedResponse;
+            }
+        } catch (IOException e) {
+            throw new JsonRpcException("Network error", e);
+        }
+    }
+    
+    // Overload for Class-based result type
+    public <T> JsonRpcResponse<T> callForResponse(String method, Object params, Class<T> resultClass) throws JsonRpcException {
+        try {
+            String requestId = UUID.randomUUID().toString();
+            JsonRpcRequest request = new JsonRpcRequest(method, params, requestId);
+            
+            String requestJson = objectMapper.writeValueAsString(request);
+            RequestBody body = RequestBody.create(requestJson, JSON);
+            
+            Request httpRequest = new Request.Builder()
+                    .url(baseUrl)
+                    .post(body)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+            
+            try (Response response = httpClient.newCall(httpRequest).execute()) {
+                if (!response.isSuccessful()) {
+                    throw new JsonRpcException("HTTP error: " + response.code() + " " + response.message());
                 }
+                
+                if (response.body() == null) {
+                    throw new JsonRpcException("Empty response body");
+                }
+                
+                String responseBody = response.body().string();
+                
+                // Create JavaType for Class-based result type
+                JavaType responseType = objectMapper.getTypeFactory()
+                    .constructParametricType(JsonRpcResponse.class, resultClass);
+                
+                // Parse directly to the typed response
+                JsonRpcResponse<T> typedResponse = objectMapper.readValue(responseBody, responseType);
                 
                 return typedResponse;
             }
@@ -250,9 +284,11 @@ public class SidecarClient {
     
     // Asynchronous call with Class result type
     public <T> CompletableFuture<T> callAsync(String method, Object params, Class<T> resultClass) {
-        return callAsync(method, params, new TypeReference<T>() {
-            public Class<T> getRawClass() {
-                return resultClass;
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return call(method, params, resultClass);
+            } catch (JsonRpcException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -309,6 +345,24 @@ public class SidecarClient {
         } catch (IOException e) {
             throw new JsonRpcException("Network error", e);
         }
+    }
+    
+    // Helper method for easy conversion of LinkedHashMap results
+    public <T> T convertResult(Object result, Class<T> targetClass) {
+        if (result == null) {
+            return null;
+        }
+        if (targetClass.isInstance(result)) {
+            return targetClass.cast(result);
+        }
+        return objectMapper.convertValue(result, targetClass);
+    }
+    
+    public <T> T convertResult(Object result, TypeReference<T> typeReference) {
+        if (result == null) {
+            return null;
+        }
+        return objectMapper.convertValue(result, typeReference);
     }
     
     // Builder pattern for client configuration
