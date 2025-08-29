@@ -25,11 +25,11 @@ public class TransactionConverter {
             transaction.getType() == TransactionType.BLOB) {
             // EIP-1559: Use maxFeePerGas as gasPrice
             transaction.getMaxFeePerGas().ifPresent(maxFee -> 
-                txEnv.setGasPrice("0x" + maxFee.getAsBigInteger().toString(16)));
+                txEnv.setGasPrice(maxFee.getAsBigInteger().toString()));
         } else {
             // Legacy: Use gasPrice
             transaction.getGasPrice().ifPresent(gasPrice ->
-                txEnv.setGasPrice("0x" + gasPrice.getAsBigInteger().toString(16)));
+                txEnv.setGasPrice(gasPrice.getAsBigInteger().toString()));
         }
         
         // Transaction destination

@@ -14,6 +14,7 @@ import org.hyperledger.besu.plugin.data.TransactionSelectionResult;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
 import org.hyperledger.besu.plugin.services.txselection.TransactionEvaluationContext;
 import net.consensys.linea.credible.SidecarClient;
+import net.consensys.linea.credible.*;
 import net.consensys.linea.credible.TransactionConverter;
 import net.consensys.linea.credible.SidecarApiModels.*;
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.Map;
 import java.util.List;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
 public class CredibleLayerTransactionSelector implements PluginTransactionSelector {
@@ -53,7 +55,8 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
 
     try {
         TxEnv txEnv = TransactionConverter.convertToTxEnv(tx);
-        
+        LOG.debug("Sending transaction {} for processing ", txHash);
+
         // Create request with proper models
         SendTransactionsRequest sendRequest = new SendTransactionsRequest();
         sendRequest.setTransactions(List.of(new TransactionWithHash(txEnv, txHash)));
@@ -66,16 +69,17 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
         );
 
         // Check if transaction was queued successfully
-        if (sendResponse.getFailed() != null && sendResponse.getFailed().contains(txHash)) {
-            LOG.warn("Transaction {} failed to queue", txHash);
+        if (!"accepted".equals(sendResponse.getStatus())) {
+            LOG.warn("Transaction {} failed to queue for processing", txHash);
+            return TransactionSelectionResult.SELECTED;
         }
-        
-        // 2. Start long-polling getTransactions async
-        GetTransactionsRequest getRequest = new GetTransactionsRequest(List.of(txHash));
-        
+
+        // 2. Get transaction status asynchronously via getTransactions
+        List<String> params = Arrays.asList(txHash);
+
         CompletableFuture<GetTransactionsResponse> future = sidecarClient.callAsync(
           CredibleLayerMethods.GET_TRANSACTIONS,
-          getRequest,
+          params,
           GetTransactionsResponse.class
         );
         
@@ -83,6 +87,8 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
         pendingTxRequests.put(txHash, future);
         
         LOG.debug("Started async transaction processing for {}", txHash);
+    } catch (SidecarClient.JsonRpcException e) {
+        LOG.warn("JsonRpcException for {}: {}: {}", txHash, e.getMessage(), e.getError());
     } catch (Exception e) {
         LOG.error("Error in transaction preprocessing for {}: {}", txHash, e.getMessage());
     }
@@ -94,7 +100,6 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
   public TransactionSelectionResult evaluateTransactionPostProcessing(
       final TransactionEvaluationContext txContext,
       final TransactionProcessingResult transactionProcessingResult) {
-
       var tx = txContext.getPendingTransaction().getTransaction();
       String txHash = tx.getHash().toHexString();
       CompletableFuture<GetTransactionsResponse> future = pendingTxRequests.remove(txHash);
@@ -124,7 +129,8 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
                   if (TransactionStatus.ASSERTION_FAILED.equals(status) || 
                       TransactionStatus.FAILED.equals(status)) {
                       LOG.info("Transaction {} excluded due to status: {}", txHash, status);
-                      return TransactionSelectionResult.invalid("tx rejected by sidecar");
+                      // TODO: maybe return a more appropriate status
+                      return TransactionSelectionResult.invalid("TX rejected by sidecar");
                   } else {
                       LOG.debug("Transaction {} included with status: {}", txHash, status);
                       return TransactionSelectionResult.SELECTED;

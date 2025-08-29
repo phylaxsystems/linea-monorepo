@@ -5,8 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import okhttp3.*;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  * Requires dependencies: okhttp3 and jackson-databind
  */
 public class SidecarClient {
+     private static final Logger LOG = LoggerFactory.getLogger(SidecarClient.class);
     
     // JSON RPC Request class
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -158,6 +161,8 @@ public class SidecarClient {
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
+
+        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
     
     private static OkHttpClient createDefaultHttpClient() {
@@ -238,6 +243,8 @@ public class SidecarClient {
             JsonRpcRequest request = new JsonRpcRequest(method, params, requestId);
             
             String requestJson = objectMapper.writeValueAsString(request);
+            LOG.trace("Request ID: {}, body: {}", requestId, requestJson);
+
             RequestBody body = RequestBody.create(requestJson, JSON);
             
             Request httpRequest = new Request.Builder()
@@ -256,6 +263,7 @@ public class SidecarClient {
                 }
                 
                 String responseBody = response.body().string();
+                LOG.trace("Response ID: {}, body: {}", requestId, responseBody);
                 
                 // Create JavaType for Class-based result type
                 JavaType responseType = objectMapper.getTypeFactory()

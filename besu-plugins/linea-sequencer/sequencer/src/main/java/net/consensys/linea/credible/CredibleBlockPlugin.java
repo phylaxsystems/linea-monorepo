@@ -84,9 +84,9 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
       Optional<PicoCLIOptions> cmdlineOptions = context.getService(PicoCLIOptions.class);
       if (cmdlineOptions.isPresent()) {
           cmdlineOptions.get().addPicoCLIOptions(PLUGIN_NAME, config);
-          log.atInfo().setMessage("CLI options are available").log();
+          log.info("CLI options are available");
       } else {
-          log.atError().setMessage("PicoCLI not available").log();
+          log.error("PicoCLI not available");
       } 
   }
 
@@ -96,11 +96,11 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
     
   @Override
   public void start() {
-      log.atInfo().setMessage("Starting connection to RPC: " + config.getRpcEndpoint()).log();
+      log.info("Starting plugin with connection to RPC {}", config.getRpcEndpoint());
 
       context
         .getService(BesuEvents.class)
-        .ifPresentOrElse(this::startEvents, () -> log.atError().setMessage("BesuEvents service not available").log());
+        .ifPresentOrElse(this::startEvents, () -> log.error("BesuEvents service not available"));
 
       this.sidecarClient = new SidecarClient.Builder()
         .baseUrl(config.getRpcEndpoint())
@@ -121,35 +121,37 @@ public class CredibleBlockPlugin implements BesuPlugin, BesuEvents.BlockAddedLis
     public void stop() {
       context
         .getService(BesuEvents.class)
-        .ifPresentOrElse(this::stopEvents, () -> log.atError().setMessage("Error retrieving BesuEvents service").log());
+        .ifPresentOrElse(this::stopEvents, () -> log.error("Error retrieving BesuEvents service"));
     }
     
   @Override
   public void onBlockAdded(final AddedBlockContext block) {
-      String blockHash = block.getBlockHeader().getBlockHash().toHexString();
-      long blockNumber = block.getBlockHeader().getNumber();
-      
-      log.atDebug().setMessage("Processing new block - Hash: " + blockHash + ", Number: " + blockNumber).log();
       var blockHeader = block.getBlockHeader();
-      var blockBody = block.getBlockBody();
 
+      String blockHash = blockHeader.getBlockHash().toHexString();
+      long blockNumber = blockHeader.getNumber();
+      
+      log.debug("Processing new block - Hash: {}, Number: {}", blockHash, blockNumber);
+      
+      // NOTE: maybe move to some converter
       SendBlockEnvRequest blockEnv = new SendBlockEnvRequest(
         blockHeader.getNumber(),
         blockHeader.getCoinbase().toHexString(),
         blockHeader.getTimestamp(),
         blockHeader.getGasLimit(),
-        blockHeader.getBaseFee().map(quantity -> quantity.toString()).orElse("0"), // 1 Gwei
+        blockHeader.getBaseFee().map(quantity -> quantity.getAsBigInteger().longValue()).orElse(1L), // 1 Gwei
         blockHeader.getDifficulty().toString(),
-        blockHeader.getMixHash().toHexString()
+        blockHeader.getMixHash().toHexString(),
+        new BlobExcessGasAndPrice(0L, 1L)
       );
 
       try {
           Map<String, Object> response = this.sidecarClient.call("sendBlockEnv", blockEnv, new TypeReference<Map<String, Object>>() {});
-          log.atInfo().setMessage("Sidecar response: " + response).log(); 
+          log.debug("Sidecar response {}", response);
         } catch (SidecarClient.JsonRpcException e) {
-          log.atError().setMessage("JsonRpcException: " + e.getMessage()).log();
+          log.debug("JsonRpcException for {}: {}: {}", blockHash, e.getMessage(), e.getError());
         } catch (Exception e) {
-          log.atError().setMessage("Exception: " + e.getMessage()).log();
+          log.error("Error handling sendBlockEnv {}", e.getMessage());
         }
   }
 }

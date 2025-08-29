@@ -2,6 +2,7 @@ package net.consensys.linea.credible;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.math.BigInteger;
@@ -172,8 +173,8 @@ public class SidecarApiModels {
         @JsonProperty("number")
         private Long number;
         
-        @JsonProperty("coinbase")
-        private String coinbase;
+        @JsonProperty("beneficiary")
+        private String beneficiary;
         
         @JsonProperty("timestamp")
         private Long timestamp;
@@ -181,33 +182,38 @@ public class SidecarApiModels {
         @JsonProperty("gas_limit")
         private Long gasLimit;
         
-        @JsonProperty("base_fee")
-        private String baseFee;
+        @JsonProperty("basefee")
+        private Long baseFee;
         
         @JsonProperty("difficulty")
         private String difficulty;
         
         @JsonProperty("prevrandao")
         private String prevrandao;
+
+        @JsonProperty("blob_excess_gas_and_price")
+        private BlobExcessGasAndPrice blobExcessGasAndPrice;
         
         public SendBlockEnvRequest() {}
 
-        public SendBlockEnvRequest(Long number, String coinbase, Long timestamp, Long gasLimit, String baseFee, String difficulty, String prevrandao) {
+        public SendBlockEnvRequest(Long number, String beneficiary, Long timestamp, Long gasLimit, 
+            Long baseFee, String difficulty, String prevrandao, BlobExcessGasAndPrice blobExcessGasAndPrice) {
             this.number = number;
-            this.coinbase = coinbase;
+            this.beneficiary = beneficiary;
             this.timestamp = timestamp;
             this.gasLimit = gasLimit;
             this.baseFee = baseFee;
             this.difficulty = difficulty;
             this.prevrandao = prevrandao;
+            this.blobExcessGasAndPrice = blobExcessGasAndPrice;
         }
         
         // Getters and setters
         public Long getNumber() { return number; }
         public void setNumber(Long number) { this.number = number; }
         
-        public String getCoinbase() { return coinbase; }
-        public void setCoinbase(String coinbase) { this.coinbase = coinbase; }
+        public String getBeneficiary() { return beneficiary; }
+        public void setBeneficiary(String beneficiary) { this.beneficiary = beneficiary; }
         
         public Long getTimestamp() { return timestamp; }
         public void setTimestamp(Long timestamp) { this.timestamp = timestamp; }
@@ -215,14 +221,41 @@ public class SidecarApiModels {
         public Long getGasLimit() { return gasLimit; }
         public void setGasLimit(Long gasLimit) { this.gasLimit = gasLimit; }
         
-        public String getBaseFee() { return baseFee; }
-        public void setBaseFee(String baseFee) { this.baseFee = baseFee; }
+        public Long getBaseFee() { return baseFee; }
+        public void setBaseFee(Long baseFee) { this.baseFee = baseFee; }
         
         public String getDifficulty() { return difficulty; }
         public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
         
         public String getPrevrandao() { return prevrandao; }
         public void setPrevrandao(String prevrandao) { this.prevrandao = prevrandao; }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class BlobExcessGasAndPrice {
+        @JsonProperty("excess_blob_gas")
+        private Long excessBlobGas;
+        
+        @JsonProperty("blob_gasprice")
+        private Long blobGasPrice;
+        
+        public BlobExcessGasAndPrice() {}
+        
+        public BlobExcessGasAndPrice(Long excessBlobGas, Long blobGasPrice) {
+            this.excessBlobGas = excessBlobGas;
+            this.blobGasPrice = blobGasPrice;
+        }
+        
+        public Long getExcessBlobGas() { return excessBlobGas; }
+        public void setExcessBlobGas(Long excessBlobGas) { this.excessBlobGas = excessBlobGas; }
+        
+        public Long getBlobGasPrice() { return blobGasPrice; }
+        public void setBlobGasPrice(Long blobGasPrice) { this.blobGasPrice = blobGasPrice; }
+        
+        @Override
+        public String toString() {
+            return String.format("BlobExcessGasAndPrice{excessBlobGas=%d, blobGasPrice=%d}", excessBlobGas, blobGasPrice);
+        }
     }
 
     // ==================== RESPONSE MODELS ====================
@@ -232,24 +265,31 @@ public class SidecarApiModels {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class SendTransactionsResponse {
-        @JsonProperty("queued")
-        private List<String> queued;
+        @JsonProperty("status")
+        private String status;
         
-        @JsonProperty("failed")
-        private List<String> failed;
+        @JsonProperty("message")
+        private String message;
+
+        @JsonProperty("transaction_count")
+        private Long transactionCount;
         
         public SendTransactionsResponse() {}
         
-        public SendTransactionsResponse(List<String> queued, List<String> failed) {
-            this.queued = queued;
-            this.failed = failed;
+        public SendTransactionsResponse(String status, String message, Long transactionCount) {
+            this.status = status;
+            this.message = message;
+            this.transactionCount = transactionCount;
         }
         
-        public List<String> getQueued() { return queued; }
-        public void setQueued(List<String> queued) { this.queued = queued; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
         
-        public List<String> getFailed() { return failed; }
-        public void setFailed(List<String> failed) { this.failed = failed; }
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+
+        public Long getTransactionCount() { return transactionCount; }
+        public void setTransactionCount(Long transactionCount) { this.transactionCount = transactionCount; }
     }
 
     /**
