@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -83,10 +84,6 @@ public class SidecarClient {
         
         public JsonRpcResponse() {}
 
-        @JsonCreator
-        public JsonRpcResponse(@JsonProperty("jsonrpc") String jsonrpc, @JsonProperty("result") T result,
-            @JsonProperty("error") JsonRpcError error, @JsonProperty("id") String id) {}
-        
         // Getters and setters
         public String getJsonrpc() { return jsonrpc; }
         public void setJsonrpc(String jsonrpc) { this.jsonrpc = jsonrpc; }
@@ -171,13 +168,11 @@ public class SidecarClient {
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
         this.objectMapper = JsonMapper.builder()
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE)
             .disable(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES)
             .enable(MapperFeature.USE_STD_BEAN_NAMING)
-            .constructorDetector(ConstructorDetector.EXPLICIT_ONLY)
+            .constructorDetector(ConstructorDetector.DEFAULT)
             .build();
     }
     
@@ -223,6 +218,8 @@ public class SidecarClient {
             JsonRpcRequest request = new JsonRpcRequest(method, params, requestId);
             
             String requestJson = objectMapper.writeValueAsString(request);
+            LOG.trace("Request ID: {}, body: {}", requestId, requestJson);
+
             RequestBody body = RequestBody.create(requestJson, JSON);
             
             Request httpRequest = new Request.Builder()
@@ -241,7 +238,8 @@ public class SidecarClient {
                 }
                 
                 String responseBody = response.body().string();
-                
+                LOG.trace("Response ID: {}, body: {}", requestId, responseBody);
+
                 // Create JavaType from TypeReference for proper type handling
                 JavaType responseType = objectMapper.getTypeFactory()
                     .constructParametricType(JsonRpcResponse.class, 
@@ -295,7 +293,7 @@ public class SidecarClient {
                 
                 return typedResponse;
             }
-        } catch (IOException e) {
+        }} catch (IOException e) {
             throw new JsonRpcException("Network error", e);
         }
     }

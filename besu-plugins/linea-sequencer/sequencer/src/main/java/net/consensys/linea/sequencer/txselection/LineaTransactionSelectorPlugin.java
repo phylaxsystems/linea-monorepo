@@ -107,7 +107,9 @@ public class LineaTransactionSelectorPlugin extends AbstractLineaRequiredPlugin 
             : Optional.empty();
 
     var credibleConfig = CredibleBlockPlugin.pluginConfiguration();
+    log.info("Credible Layer configuration: {}", credibleConfig);
     var credibleLayerConfig = credibleConfig.map(cfg -> {
+        log.info("Credible Layer rpc: {}", cfg.getRpcEndpoint());
         var sidecarClient = new SidecarClient.Builder()
             .baseUrl(cfg.getRpcEndpoint())
             .build();

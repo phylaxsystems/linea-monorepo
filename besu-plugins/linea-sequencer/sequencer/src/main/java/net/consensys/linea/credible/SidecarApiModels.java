@@ -285,8 +285,6 @@ public class SidecarApiModels {
         @JsonProperty("transaction_count")
         private Long transactionCount;
         
-        public SendTransactionsResponse() {}
-        
         @JsonCreator
         public SendTransactionsResponse(@JsonProperty("status") String status, @JsonProperty("message") String message,
             @JsonProperty("transaction_count") Long transactionCount) {
@@ -296,13 +294,9 @@ public class SidecarApiModels {
         }
         
         public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
         
         public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-
         public Long getTransactionCount() { return transactionCount; }
-        public void setTransactionCount(Long transactionCount) { this.transactionCount = transactionCount; }
     }
 
     /**
@@ -410,9 +404,6 @@ public class SidecarApiModels {
         
         @JsonProperty("hash")
         private String hash;
-        
-        public TransactionWithHash() {}
-        
         @JsonCreator
         public TransactionWithHash(@JsonProperty("txEnv") TxEnv txEnv, @JsonProperty("hash") String hash) {
             this.txEnv = txEnv;
