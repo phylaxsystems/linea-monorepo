@@ -47,7 +47,7 @@ api-gas-and-priority-fee-upper-bound-coefficient=300
 poa-block-txs-selection-max-time=1000
 
 # plugins
-plugins=["LineaEstimateGasEndpointPlugin","LineaL1FinalizationTagUpdaterPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin"]
+plugins=["LineaEstimateGasEndpointPlugin","LineaL1FinalizationTagUpdaterPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin", "CredibleBlockPlugin"]
 plugin-linea-module-limit-file-path="/var/lib/besu/traces-limits.toml"
 plugin-linea-deny-list-path="/var/lib/besu/deny-list.txt"
 plugin-linea-estimate-gas-compatibility-mode-enabled=false
@@ -84,6 +84,9 @@ plugin-linea-liveness-tls-trust-store-password="changeit"
 plugin-linea-liveness-signer-address="0x54d450f4d728da50f1271a1700b42657940324aa"
 plugin-linea-liveness-gas-limit=1000000
 plugin-linea-liveness-gas-price=7
+
+plugin-credible-sidecar-rpc-endpoint="http://credible-sidecar:9546/tx"
+plugin-credible-sidecar-processing-timeout-ms=1000
 
 Xplugin-rocksdb-high-spec-enabled=true
 Xsynchronizer-fast-sync-full-validation-rate=0.000001

@@ -8,6 +8,13 @@ assemble:
 
 build:
 	$(MAKE) assemble
+	$(MAKE) __build
+
+build-local-plugins:
+	$(MAKE) assemble-with-local-plugins
+	$(MAKE) __build
+
+__build:
 	echo "IMAGE TAG=$(TAG)"
 	echo "PLATFORM=$(PLATFORM)"
 	if [ "$(PLATFORM)" = "" ]; then \
