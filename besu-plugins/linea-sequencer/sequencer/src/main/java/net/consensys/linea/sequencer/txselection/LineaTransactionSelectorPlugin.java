@@ -29,6 +29,8 @@ import org.hyperledger.besu.plugin.BesuPlugin;
 import org.hyperledger.besu.plugin.ServiceManager;
 import org.hyperledger.besu.plugin.services.TransactionSelectionService;
 import net.consensys.linea.credible.CredibleBlockPlugin;
+import net.consensys.linea.credible.SidecarClient;
+import net.consensys.linea.sequencer.txselection.selectors.CredibleLayerTransactionSelector;
 
 /**
  * This class extends the default transaction selection rules used by Besu. It leverages the
@@ -104,7 +106,17 @@ public class LineaTransactionSelectorPlugin extends AbstractLineaRequiredPlugin 
                     metricsSystem))
             : Optional.empty();
 
-    var cliConfig = CredibleBlockPlugin.pluginConfiguration();
+    var credibleConfig = CredibleBlockPlugin.pluginConfiguration();
+    var credibleLayerConfig = credibleConfig.map(cfg -> {
+        var sidecarClient = new SidecarClient.Builder()
+            .baseUrl(cfg.getRpcEndpoint())
+            .build();
+        var config = new CredibleLayerTransactionSelector.Config(
+            sidecarClient,
+            cfg.getProcessingTimeout()
+        );
+        return Optional.of(config);
+    }).orElse(Optional.empty());
 
     transactionSelectionService.registerPluginTransactionSelectorFactory(
         new LineaTransactionSelectorFactory(
@@ -117,7 +129,7 @@ public class LineaTransactionSelectorPlugin extends AbstractLineaRequiredPlugin 
             rejectedTxJsonRpcManager,
             maybeProfitabilityMetrics,
             bundlePoolService,
-            cliConfig));
+            credibleLayerConfig));
   }
 
   @Override

@@ -30,6 +30,8 @@ import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelecto
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelectorFactory;
 import org.hyperledger.besu.plugin.services.txselection.SelectorsStateManager;
 import net.consensys.linea.credible.CredibleBlockPlugin;
+import net.consensys.linea.credible.SidecarClient;
+import net.consensys.linea.sequencer.txselection.selectors.CredibleLayerTransactionSelector;
 
 /**
  * Represents a factory for creating transaction selectors. Note that a new instance of the
@@ -48,7 +50,7 @@ public class LineaTransactionSelectorFactory implements PluginTransactionSelecto
   private final Optional<HistogramMetrics> maybeProfitabilityMetrics;
   private final BundlePoolService bundlePoolService;
   private final Optional<LivenessService> livenessService;
-  private final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration;
+  private final Optional<CredibleLayerTransactionSelector.Config> maybeCredibleConfig;
   private final AtomicReference<LineaTransactionSelector> currSelector = new AtomicReference<>();
 
   public LineaTransactionSelectorFactory(
@@ -61,7 +63,7 @@ public class LineaTransactionSelectorFactory implements PluginTransactionSelecto
       final Optional<JsonRpcManager> rejectedTxJsonRpcManager,
       final Optional<HistogramMetrics> maybeProfitabilityMetrics,
       final BundlePoolService bundlePoolService,
-      final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration) {
+      final Optional<CredibleLayerTransactionSelector.Config> maybeCredibleConfig) {
     this.blockchainService = blockchainService;
     this.txSelectorConfiguration = txSelectorConfiguration;
     this.l1L2BridgeConfiguration = l1L2BridgeConfiguration;
@@ -71,7 +73,7 @@ public class LineaTransactionSelectorFactory implements PluginTransactionSelecto
     this.maybeProfitabilityMetrics = maybeProfitabilityMetrics;
     this.bundlePoolService = bundlePoolService;
     this.livenessService = livenessService;
-    this.maybeCredibleConfiguration = maybeCredibleConfiguration;
+    this.maybeCredibleConfig = maybeCredibleConfig;
   }
 
   @Override
@@ -86,7 +88,7 @@ public class LineaTransactionSelectorFactory implements PluginTransactionSelecto
             tracerConfiguration,
             rejectedTxJsonRpcManager,
             maybeProfitabilityMetrics,
-            maybeCredibleConfiguration);
+            maybeCredibleConfig);
     currSelector.set(selector);
     return selector;
   }

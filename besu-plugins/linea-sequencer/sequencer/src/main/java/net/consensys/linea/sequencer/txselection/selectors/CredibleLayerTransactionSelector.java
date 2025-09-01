@@ -29,21 +29,33 @@ import java.util.concurrent.TimeoutException;
 
 public class CredibleLayerTransactionSelector implements PluginTransactionSelector {
   private static final Logger LOG = LoggerFactory.getLogger(CredibleLayerTransactionSelector.class);
-  
-  private final String rpcUrl;
-  private final int processingTimeout;
-  private SidecarClient sidecarClient;
+
+  public static class Config {
+    private final int processingTimeout;
+    private SidecarClient sidecarClient;
+
+    public Config(SidecarClient sidecarClient, int processingTimeout) {
+      this.processingTimeout = processingTimeout;
+      this.sidecarClient = sidecarClient;
+    }
+
+    public int getProcessingTimeout() {
+      return processingTimeout;
+    }
+
+    public SidecarClient getSidecarClient() {
+      return sidecarClient;
+    }
+  }
+
+  private final Config config;
   
   // Store pending getTransactions futures by transaction hash
   private final Map<String, CompletableFuture<GetTransactionsResponse>> pendingTxRequests = 
         new ConcurrentHashMap<>();
 
-  public CredibleLayerTransactionSelector(final String rpcUrl, final int processingTimeout) {
-    this.rpcUrl = rpcUrl;
-    this.processingTimeout = processingTimeout;
-    this.sidecarClient = new SidecarClient.Builder()
-        .baseUrl(rpcUrl)
-        .build();
+  public CredibleLayerTransactionSelector(final Config config) {
+    this.config = config;
   }
 
   @Override
@@ -62,7 +74,7 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
         sendRequest.setTransactions(List.of(new TransactionWithHash(txEnv, txHash)));
         
         // 1. Send transaction synchronously via sendTransactions
-        SendTransactionsResponse sendResponse = sidecarClient.call(
+        SendTransactionsResponse sendResponse = config.sidecarClient.call(
           CredibleLayerMethods.SEND_TRANSACTIONS, 
           sendRequest, 
           SendTransactionsResponse.class
@@ -77,7 +89,7 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
         // 2. Get transaction status asynchronously via getTransactions
         List<String> params = Arrays.asList(txHash);
 
-        CompletableFuture<GetTransactionsResponse> future = sidecarClient.callAsync(
+        CompletableFuture<GetTransactionsResponse> future = config.sidecarClient.callAsync(
           CredibleLayerMethods.GET_TRANSACTIONS,
           params,
           GetTransactionsResponse.class
@@ -113,7 +125,7 @@ public class CredibleLayerTransactionSelector implements PluginTransactionSelect
           LOG.debug("Awaiting result for {}", txHash);
           
           // Wait for long-polling response
-          GetTransactionsResponse response = future.get(this.processingTimeout, TimeUnit.MILLISECONDS);
+          GetTransactionsResponse response = future.get(config.processingTimeout, TimeUnit.MILLISECONDS);
           
           // Process the response to determine if transaction is valid
           if (response.getResults() == null || response.getResults().isEmpty()) {

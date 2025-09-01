@@ -34,6 +34,7 @@ import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelecto
 import org.hyperledger.besu.plugin.services.txselection.SelectorsStateManager;
 import org.hyperledger.besu.plugin.services.txselection.TransactionEvaluationContext;
 import net.consensys.linea.credible.CredibleBlockPlugin;
+import net.consensys.linea.credible.*;
 
 /** Class for transaction selection using a list of selectors. */
 @Slf4j
@@ -53,7 +54,7 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
       final LineaTracerConfiguration tracerConfiguration,
       final Optional<JsonRpcManager> rejectedTxJsonRpcManager,
       final Optional<HistogramMetrics> maybeProfitabilityMetrics,
-      final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration) {
+      final Optional<CredibleLayerTransactionSelector.Config> maybeCredibleConfig) {
     this.rejectedTxJsonRpcManager = rejectedTxJsonRpcManager;
 
     // only report rejected transaction selection result from TraceLineLimitTransactionSelector
@@ -71,7 +72,7 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
             profitabilityConfiguration,
             tracerConfiguration,
             maybeProfitabilityMetrics,
-            maybeCredibleConfiguration);
+            maybeCredibleConfig);
   }
 
   /**
@@ -93,7 +94,7 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
       final LineaProfitabilityConfiguration profitabilityConfiguration,
       final LineaTracerConfiguration tracerConfiguration,
       final Optional<HistogramMetrics> maybeProfitabilityMetrics,
-      final Optional<CredibleBlockPlugin.CrediblePluginConfiguration> maybeCredibleConfiguration) {
+      final Optional<CredibleLayerTransactionSelector.Config> maybeCredibleConfig) {
 
     traceLineLimitTransactionSelector =
         new TraceLineLimitTransactionSelector(
@@ -105,8 +106,7 @@ public class LineaTransactionSelector implements PluginTransactionSelector {
 
     Stream.Builder<PluginTransactionSelector> builder = Stream.builder();
 
-    maybeCredibleConfiguration.ifPresent(cfg ->
-        builder.add(new CredibleLayerTransactionSelector(cfg.getRpcEndpoint(), cfg.getProcessingTimeout())));
+    maybeCredibleConfig.ifPresent(cfg -> builder.add(new CredibleLayerTransactionSelector(cfg)));
 
     builder.add(new MaxBlockCallDataTransactionSelector(
         selectorsStateManager, txSelectorConfiguration.maxBlockCallDataSize()));
