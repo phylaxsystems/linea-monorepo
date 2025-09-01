@@ -1,7 +1,10 @@
 package net.consensys.linea.credible;
 
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -47,8 +50,10 @@ public class SidecarApiModels {
             this.accessList = new ArrayList<>();
         }
         
-        public TxEnv(String caller, Long gasLimit, String gasPrice, String transactTo,
-                    String value, String data, Long nonce, Long chainId, List<AccessListEntry> accessList) {
+        @JsonCreator
+        public TxEnv(@JsonProperty("caller") String caller, @JsonProperty("gas_limit") Long gasLimit, @JsonProperty("gas_price") String gasPrice,
+            @JsonProperty("transact_to") String transactTo, @JsonProperty("value") String value, @JsonProperty("data") String data,
+            @JsonProperty("nonce") Long nonce, @JsonProperty("chain_id") Long chainId, @JsonProperty("access_list") List<AccessListEntry> accessList) {
             this.caller = caller;
             this.gasLimit = gasLimit;
             this.gasPrice = gasPrice;
@@ -108,7 +113,8 @@ public class SidecarApiModels {
         
         public AccessListEntry() {}
         
-        public AccessListEntry(String address, List<String> storageKeys) {
+        @JsonCreator
+        public AccessListEntry(@JsonProperty("address") String address, @JsonProperty("storage_keys") List<String> storageKeys) {
             this.address = address;
             this.storageKeys = storageKeys != null ? storageKeys : new ArrayList<>();
         }
@@ -139,7 +145,8 @@ public class SidecarApiModels {
         
         public SendTransactionsRequest() {}
         
-        public SendTransactionsRequest(List<TransactionWithHash> transactions) {
+        @JsonCreator
+        public SendTransactionsRequest(@JsonProperty("transactions") List<TransactionWithHash> transactions) {
             this.transactions = transactions;
         }
         
@@ -157,7 +164,8 @@ public class SidecarApiModels {
         
         public GetTransactionsRequest() {}
         
-        public GetTransactionsRequest(List<String> hashes) {
+        @JsonCreator
+        public GetTransactionsRequest(@JsonProperty("hashes") List<String> hashes) {
             this.hashes = hashes;
         }
         
@@ -196,8 +204,10 @@ public class SidecarApiModels {
         
         public SendBlockEnvRequest() {}
 
-        public SendBlockEnvRequest(Long number, String beneficiary, Long timestamp, Long gasLimit, 
-            Long baseFee, String difficulty, String prevrandao, BlobExcessGasAndPrice blobExcessGasAndPrice) {
+        @JsonCreator
+        public SendBlockEnvRequest(@JsonProperty("number") Long number, @JsonProperty("beneficiary") String beneficiary, @JsonProperty("timestamp") Long timestamp,
+            @JsonProperty("gas_limit")Long gasLimit, @JsonProperty("basefee") Long baseFee, @JsonProperty("difficulty") String difficulty,
+            @JsonProperty("prevrandao") String prevrandao, @JsonProperty("blob_excess_gas_and_price") BlobExcessGasAndPrice blobExcessGasAndPrice) {
             this.number = number;
             this.beneficiary = beneficiary;
             this.timestamp = timestamp;
@@ -241,7 +251,8 @@ public class SidecarApiModels {
         
         public BlobExcessGasAndPrice() {}
         
-        public BlobExcessGasAndPrice(Long excessBlobGas, Long blobGasPrice) {
+        @JsonCreator
+        public BlobExcessGasAndPrice(@JsonProperty("excess_blob_gas") Long excessBlobGas, @JsonProperty("blob_gasprice") Long blobGasPrice) {
             this.excessBlobGas = excessBlobGas;
             this.blobGasPrice = blobGasPrice;
         }
@@ -276,7 +287,9 @@ public class SidecarApiModels {
         
         public SendTransactionsResponse() {}
         
-        public SendTransactionsResponse(String status, String message, Long transactionCount) {
+        @JsonCreator
+        public SendTransactionsResponse(@JsonProperty("status") String status, @JsonProperty("message") String message,
+            @JsonProperty("transaction_count") Long transactionCount) {
             this.status = status;
             this.message = message;
             this.transactionCount = transactionCount;
@@ -305,7 +318,8 @@ public class SidecarApiModels {
         
         public GetTransactionsResponse() {}
         
-        public GetTransactionsResponse(List<TransactionResult> results, List<String> notFound) {
+        @JsonCreator
+        public GetTransactionsResponse(@JsonProperty("results") List<TransactionResult> results, @JsonProperty("not_found") List<String> notFound) {
             this.results = results;
             this.notFound = notFound;
         }
@@ -329,8 +343,9 @@ public class SidecarApiModels {
         private String error;
         
         public SendBlockEnvResponse() {}
-        
-        public SendBlockEnvResponse(Boolean success, String error) {
+
+        @JsonCreator
+        public SendBlockEnvResponse(@JsonProperty("success") Boolean success, @JsonProperty("error") String error) {
             this.success = success;
             this.error = error;
         }
@@ -363,7 +378,9 @@ public class SidecarApiModels {
         
         public TransactionResult() {}
         
-        public TransactionResult(String hash, String status, Long gasUsed, String error) {
+        @JsonCreator
+        public TransactionResult(@JsonProperty("hash") String hash, @JsonProperty("status") String status,
+            @JsonProperty("gas_used") Long gasUsed, @JsonProperty("error") String error) {
             this.hash = hash;
             this.status = status;
             this.gasUsed = gasUsed;
@@ -396,7 +413,8 @@ public class SidecarApiModels {
         
         public TransactionWithHash() {}
         
-        public TransactionWithHash(TxEnv txEnv, String hash) {
+        @JsonCreator
+        public TransactionWithHash(@JsonProperty("txEnv") TxEnv txEnv, @JsonProperty("hash") String hash) {
             this.txEnv = txEnv;
             this.hash = hash;
         }

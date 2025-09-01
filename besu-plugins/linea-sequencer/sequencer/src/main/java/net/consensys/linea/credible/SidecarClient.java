@@ -2,9 +2,13 @@ package net.consensys.linea.credible;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import okhttp3.*;
 import org.slf4j.Logger;
@@ -41,7 +45,8 @@ public class SidecarClient {
         
         public JsonRpcRequest() {}
         
-        public JsonRpcRequest(String method, Object params, String id) {
+        @JsonCreator
+        public JsonRpcRequest(@JsonProperty("method") String method, @JsonProperty("params") Object params, @JsonProperty("id") String id) {
             this.method = method;
             this.params = params;
             this.id = id;
@@ -77,6 +82,10 @@ public class SidecarClient {
         private String id;
         
         public JsonRpcResponse() {}
+
+        @JsonCreator
+        public JsonRpcResponse(@JsonProperty("jsonrpc") String jsonrpc, @JsonProperty("result") T result,
+            @JsonProperty("error") JsonRpcError error, @JsonProperty("id") String id) {}
         
         // Getters and setters
         public String getJsonrpc() { return jsonrpc; }
@@ -106,6 +115,7 @@ public class SidecarClient {
         @JsonProperty("data")
         private Object data;
         
+        @JsonCreator
         public JsonRpcError() {}
         
         // Getters and setters
@@ -160,16 +170,27 @@ public class SidecarClient {
     public SidecarClient(String baseUrl, OkHttpClient httpClient) {
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
-        this.objectMapper = new ObjectMapper();
-
-        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.objectMapper = JsonMapper.builder()
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE)
+            .disable(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES)
+            .enable(MapperFeature.USE_STD_BEAN_NAMING)
+            .constructorDetector(ConstructorDetector.EXPLICIT_ONLY)
+            .build();
     }
     
     private static OkHttpClient createDefaultHttpClient() {
         return new OkHttpClient.Builder()
+                .connectionPool(new ConnectionPool(100, 2, TimeUnit.MINUTES))
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .cookieJar(CookieJar.NO_COOKIES)
                 .build();
     }
     
