@@ -120,7 +120,6 @@ services:
       # Deployer of the credible contracts
       PRIVATE_KEY: "0xac431098061ca49f5b36121d01a17d30e1d0624227d08b583ff328f1efe0d4a2"
       RPC_URL: "http://sequencer:8545"
-      DA_URL: "http://assertion-da:5001"
       STATE_ORACLE_MAX_ASSERTIONS_PER_AA: 10
       STATE_ORACLE_ASSERTION_TIMELOCK_BLOCKS: 10
       STATE_ORACLE_ADMIN_ADDRESS: "0x8d63e0FE87CA36E06a076584fCA651A684D4c97d"
