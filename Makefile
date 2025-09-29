@@ -126,8 +126,14 @@ stop_pid:
 start-credible: ## Start environment with Credible Layer sidecar
 	make start-env COMPOSE_PROFILES=l1,l2,credible COMPOSE_FILE=docker/compose-credible-sidecar.yml
 
+start-credible-tracing-ci: ## Start environment with Credible Layer sidecar configured for CI
+	make start-env COMPOSE_PROFILES=l1,l2,credible COMPOSE_FILE=docker/compose-credible-tracing-ci-extension.yml LINEA_COORDINATOR_DISABLE_TYPE2_STATE_PROOF_PROVIDER=false LINEA_COORDINATOR_SIGNER_TYPE=web3signer
+
 stop-credible: ## Stop Credible Layer sidecar
 	docker compose -f docker/compose-credible-sidecar.yml --profile credible --profile l1 --profile l2 stop
+
+stop-credible-tracing-ci: ## Stop Credible Layer sidecar configured for CI
+	docker compose -f docker/compose-credible-tracing-ci-extension.yml --profile credible --profile l1 --profile l2 stop
 
 clean-credible: ## Clean Credible Layer sidecar and volumes
 	docker compose -f docker/compose-credible-sidecar.yml --profile credible --profile l1 --profile l2 down || true;
@@ -143,5 +149,4 @@ test-credible: ## Test Credible Layer sidecar endpoints
 		http://localhost:9546 | jq . || echo "RPC endpoint not available"
 	@echo "\nMetrics endpoint (if configured):"
 	@curl -s http://localhost:9000/metrics | head -n 5 || echo "Metrics not available"
-
 
