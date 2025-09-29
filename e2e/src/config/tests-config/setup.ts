@@ -99,6 +99,13 @@ export default class TestSetup {
     return this.config.L2.transactionExclusionEndpoint;
   }
 
+  public getAssertionDaEndpoint(): URL | undefined {
+    if (!this.isLocalL2Config(this.config.L2)) {
+      return undefined;
+    }
+    return this.config.L2.assertionDaEndpoint;
+  }
+
   public getLineaRollupContract(signer?: AbstractSigner): LineaRollupV6 {
     const lineaRollup: LineaRollupV6 = LineaRollupV6__factory.connect(
       this.config.L1.lineaRollupAddress,
@@ -273,7 +280,8 @@ export default class TestSetup {
       (config as LocalL2Config).sequencerEndpoint !== undefined &&
       (config as LocalL2Config).shomeiEndpoint !== undefined &&
       (config as LocalL2Config).shomeiFrontendEndpoint !== undefined &&
-      (config as LocalL2Config).transactionExclusionEndpoint !== undefined
+      (config as LocalL2Config).transactionExclusionEndpoint !== undefined &&
+      (config as LocalL2Config).assertionDaEndpoint !== undefined
     );
   }
 }
