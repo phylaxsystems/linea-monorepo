@@ -11,6 +11,7 @@ const SHOMEI_ENDPOINT = new URL("http://localhost:8998");
 const SHOMEI_FRONTEND_ENDPOINT = new URL("http://localhost:8889");
 const SEQUENCER_ENDPOINT = new URL("http://localhost:8545");
 const TRANSACTION_EXCLUSION_ENDPOINT = new URL("http://localhost:8082");
+const ASSERTION_DA_ENDPOINT = new URL("http://localhost:5001");
 
 const config: Config = {
   L1: {
@@ -52,7 +53,7 @@ const config: Config = {
     shomeiFrontendEndpoint: SHOMEI_FRONTEND_ENDPOINT,
     sequencerEndpoint: SEQUENCER_ENDPOINT,
     transactionExclusionEndpoint: TRANSACTION_EXCLUSION_ENDPOINT,
-    opcodeTesterAddress: "0xa50a51c09a5c451C52BB714527E1974b686D8e77",
+    assertionDaEndpoint: ASSERTION_DA_ENDPOINT,
   },
 };
 
