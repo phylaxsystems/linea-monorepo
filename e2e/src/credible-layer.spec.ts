@@ -145,6 +145,9 @@ describeCredible("Credible layer e2e test suite", () => {
       typeof CounterArtifact.bytecode === "string" ? CounterArtifact.bytecode : CounterArtifact.bytecode.object;
 
     const counterFactory = new ethers.ContractFactory(CounterArtifact.abi, counterBytecode, deployer);
+    logger.info(
+      `Counter artifact info. bytecodeBytes=${counterBytecode ? (counterBytecode.length - 2) / 2 : 0} abiEntries=${CounterArtifact.abi.length}`,
+    );
 
     const formatNullableBigInt = (value: bigint | null | undefined) => (value == null ? "null" : value.toString());
 
@@ -158,11 +161,22 @@ describeCredible("Credible layer e2e test suite", () => {
       counterDeployOverrides.gasPrice = feeData.gasPrice;
     }
 
-    const deployTx = counterFactory.getDeployTransaction();
+    const deployTx = await counterFactory.getDeployTransaction();
+    const deployDataBytes = deployTx.data ? (deployTx.data.length - 2) / 2 : 0;
+    logger.info(
+      `Prepared Counter deployment transaction request. to=${deployTx.to ?? "<constructor>"} dataBytes=${deployDataBytes} value=${formatNullableBigInt(deployTx.value)}`,
+    );
+    if (deployDataBytes === 0) {
+      logger.error(
+        "Counter deployment transaction missing init code bytes; the artifact bytecode may be empty or not wired correctly.",
+      );
+    }
     const estimationRequest: TransactionRequest = {
-      ...deployTx,
       ...counterDeployOverrides,
       from: deployerAddress,
+      to: deployTx.to,
+      data: deployTx.data,
+      value: deployTx.value,
     };
     const estimatedGas = await deployer.estimateGas(estimationRequest);
     const bufferedGas = (estimatedGas * 12n) / 10n;
@@ -173,6 +187,11 @@ describeCredible("Credible layer e2e test suite", () => {
       : bufferedGas;
 
     const counterConstructorGas = await l2Provider.estimateGas(estimationRequest);
+    logger.info(
+      `Counter gas estimation. rawEstimate=${formatNullableBigInt(counterConstructorGas)} buffered=${formatNullableBigInt(
+        (counterConstructorGas * 12n) / 10n,
+      )}`,
+    );
     const deploymentNonceBefore = await l2Provider.getTransactionCount(deployerAddress, "latest");
     const counterDeployTx = await deployer.sendTransaction({
       ...estimationRequest,
@@ -188,8 +207,20 @@ describeCredible("Credible layer e2e test suite", () => {
     expect(deploymentNonce).toBe(deploymentNonceBefore);
 
     const counterAddress = deploymentReceipt?.contractAddress ?? ethers.ZeroAddress;
+    const confirmations =
+      typeof deploymentReceipt?.confirmations === "function"
+        ? await deploymentReceipt.confirmations()
+        : deploymentReceipt?.confirmations ?? "null";
     logger.info(
-      `Counter deployment receipt. txHash=${counterDeployTx.hash} status=${deploymentReceipt?.status ?? "null"} contractAddress=${counterAddress} blockNumber=${deploymentReceipt?.blockNumber ?? "null"} confirmations=${deploymentReceipt?.confirmations ?? "null"} gasUsed=${formatNullableBigInt(deploymentReceipt?.gasUsed)} cumulativeGasUsed=${formatNullableBigInt(deploymentReceipt?.cumulativeGasUsed)} effectiveGasPrice=${formatNullableBigInt(deploymentReceipt?.effectiveGasPrice)} type=${deploymentReceipt?.type ?? "null"}`,
+      `Counter deployment receipt. txHash=${counterDeployTx.hash} status=${deploymentReceipt?.status ?? "null"} contractAddress=${counterAddress} blockNumber=${
+        deploymentReceipt?.blockNumber ?? "null"
+      } confirmations=${confirmations} gasUsed=${formatNullableBigInt(
+        deploymentReceipt?.gasUsed,
+      )} cumulativeGasUsed=${formatNullableBigInt(
+        deploymentReceipt?.cumulativeGasUsed,
+      )} effectiveGasPrice=${formatNullableBigInt(deploymentReceipt?.effectiveGasPrice)} type=${
+        deploymentReceipt?.type ?? "null"
+      }`,
     );
     if (counterAddress === ethers.ZeroAddress) {
       logger.error(
@@ -198,10 +229,52 @@ describeCredible("Credible layer e2e test suite", () => {
     }
     expect(counterAddress).not.toEqual(ethers.ZeroAddress);
 
+    const txOnChain = await l2Provider.getTransaction(counterDeployTx.hash);
+    logger.info(
+      `Counter deployment transaction on-chain. blockNumber=${txOnChain?.blockNumber ?? "null"} gasLimit=${formatNullableBigInt(
+        txOnChain?.gasLimit,
+      )} gasPrice=${formatNullableBigInt(txOnChain?.gasPrice)} maxFeePerGas=${formatNullableBigInt(
+        txOnChain?.maxFeePerGas,
+      )} maxPriorityFeePerGas=${formatNullableBigInt(txOnChain?.maxPriorityFeePerGas)} dataBytes=${
+        txOnChain?.data ? (txOnChain.data.length - 2) / 2 : 0
+      } value=${formatNullableBigInt(txOnChain?.value)}`,
+    );
+
+    if (deploymentReceipt) {
+      const receiptLogSummary = (deploymentReceipt.logs ?? []).map((log) => ({
+        index: log.index,
+        address: log.address,
+        topics: log.topics,
+        dataBytes: (log.data.length - 2) / 2,
+      }));
+      logger.info(
+        `Counter deployment receipt logs summary. logsCount=${receiptLogSummary.length} details=${JSON.stringify(receiptLogSummary)}`,
+      );
+
+      const deploymentBlock = deploymentReceipt.blockNumber
+        ? await l2Provider.getBlock(deploymentReceipt.blockNumber)
+        : null;
+      if (deploymentBlock) {
+        logger.info(
+          `Counter deployment block info. blockNumber=${deploymentBlock.number} hash=${deploymentBlock.hash} parentHash=${deploymentBlock.parentHash} stateRoot=${deploymentBlock.stateRoot} txCount=${deploymentBlock.transactions.length}`,
+        );
+      }
+    }
+
     logger.info(
       `Counter deployed for Credible Layer tests. address=${counterAddress} nonce=${deploymentNonce} deployer=${deployerAddress} gasUsed=${deploymentReceipt?.gasUsed}`,
     );
     if (counterAddress !== ethers.ZeroAddress) {
+      const counterCodeAtBlock = deploymentReceipt?.blockNumber
+        ? await l2Provider.getCode(counterAddress, deploymentReceipt.blockNumber)
+        : null;
+      if (counterCodeAtBlock != null) {
+        logger.info(
+          `Counter contract code at deployment block. blockNumber=${deploymentReceipt?.blockNumber ?? "null"} byteLength=${
+            counterCodeAtBlock === "0x" ? 0 : (counterCodeAtBlock.length - 2) / 2
+          }`,
+        );
+      }
       const counterCode = await l2Provider.getCode(counterAddress);
       if (counterCode === "0x") {
         logger.error(
