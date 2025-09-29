@@ -7,6 +7,9 @@ export const OPERATOR_ROLE = "0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188b
 export const VERIFIER_SETTER_ROLE = "0x32937fd5162e282df7e9a14a5073a2425321c7966eaf70ed6c838a1006d84c4c";
 export const MESSAGE_SENT_EVENT_SIGNATURE = "0xe856c2b8bd4eb0027ce32eeaf595c21b0b6b4644b326e5b7bd80a1cf8db72e6c";
 
+// pcl unit test consts
+export const STATE_ORACLE_ADDRESS = "0x6dD3f12ce435f69DCeDA7e31605C02Bb5422597b";
+
 export const HASH_ZERO = zeroHash;
 export const EMPTY_CONTRACT_CODE = "0x";
 export const TRANSACTION_CALLDATA_LIMIT = 30_000;
