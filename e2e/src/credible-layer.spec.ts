@@ -1,7 +1,20 @@
 import { beforeAll, describe, expect, it } from "@jest/globals";
+import { ethers, TransactionRequest } from "ethers";
 import { config } from "./config/tests-config";
 import { AssertionDaClient, AssertionDaError } from "./common/utils";
 import { STATE_ORACLE_ADDRESS } from "./common/constants";
+import CounterArtifact from "../../contracts/out/SimpleCounterAssertion.sol/Counter.json" assert { type: "json" };
+
+const ADMIN_VERIFIER_OWNER_ADDRESS = "0x3e06372d794a48552203069915eA91b223297736" as const;
+const stateOracleAbi = [
+  "function ASSERTION_TIMELOCK_BLOCKS() view returns (uint128)",
+  "function MAX_ASSERTIONS_PER_AA() view returns (uint128)",
+  "function DA_VERIFIER() view returns (address)",
+  "function owner() view returns (address)",
+];
+const adminVerifierAbi = [
+  "function verifyAdmin(address contractAddress, address requester, bytes data) view returns (bool)",
+];
 
 const assertionDaEndpoint = config.getAssertionDaEndpoint();
 
@@ -92,11 +105,114 @@ describeCredible("Credible layer e2e test suite", () => {
     it.skip("stores a new assertion via the PCL CLI", storeAssertion);
   }
 
-  it("tracks end-to-end flows between the Credible sidecar and Assertion DA", async () => {
-    // Placeholder for the full Credible flow validation.
-    // TODO: deploy credible layer contracts, deploy the counter contract,
-    // register the counter assertion using pcl and submit to da,
-    // increment contract once and verify it passes, do it a second time and verify it fails
-    expect(true).toBeTruthy();
+  it("deploys the Counter contract after verifying Credible Layer core deployments", async () => {
+    const logger = global.logger;
+    const l2Provider = config.getL2Provider();
+    const deployer = config.getL2AccountManager().whaleAccount(0);
+    const deployerAddress = await deployer.getAddress();
+
+    logger.info(
+      `Using whale account to verify Credible Layer core contracts. deployer=${deployerAddress} stateOracle=${STATE_ORACLE_ADDRESS} adminVerifier=${ADMIN_VERIFIER_OWNER_ADDRESS}`,
+    );
+
+    const [stateOracleCode, adminVerifierCode] = await Promise.all([
+      l2Provider.getCode(STATE_ORACLE_ADDRESS),
+      l2Provider.getCode(ADMIN_VERIFIER_OWNER_ADDRESS),
+    ]);
+
+    expect(stateOracleCode).not.toEqual("0x");
+    expect(adminVerifierCode).not.toEqual("0x");
+
+    const stateOracle = new ethers.Contract(STATE_ORACLE_ADDRESS, stateOracleAbi, l2Provider);
+    const adminVerifier = new ethers.Contract(ADMIN_VERIFIER_OWNER_ADDRESS, adminVerifierAbi, l2Provider);
+
+    const [timelockBlocks, maxAssertionsPerAa, daVerifierAddress, stateOracleOwner] = await Promise.all([
+      stateOracle.ASSERTION_TIMELOCK_BLOCKS(),
+      stateOracle.MAX_ASSERTIONS_PER_AA(),
+      stateOracle.DA_VERIFIER(),
+      stateOracle.owner(),
+    ]);
+
+    expect(timelockBlocks > 0n).toBe(true);
+    expect(maxAssertionsPerAa > 0n).toBe(true);
+    expect(daVerifierAddress).not.toEqual(ethers.ZeroAddress);
+    expect(stateOracleOwner).not.toEqual(ethers.ZeroAddress);
+
+    const adminVerifierResult = await adminVerifier.verifyAdmin(STATE_ORACLE_ADDRESS, stateOracleOwner, "0x");
+    expect(adminVerifierResult).toBe(true);
+
+    const counterBytecode =
+      typeof CounterArtifact.bytecode === "string" ? CounterArtifact.bytecode : CounterArtifact.bytecode.object;
+
+    const counterFactory = new ethers.ContractFactory(CounterArtifact.abi, counterBytecode, deployer);
+
+    const formatNullableBigInt = (value: bigint | null | undefined) => (value == null ? "null" : value.toString());
+
+    const counterDeployOverrides: TransactionRequest = {};
+
+    const feeData = await l2Provider.getFeeData();
+    if (feeData.maxPriorityFeePerGas && feeData.maxFeePerGas) {
+      counterDeployOverrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      counterDeployOverrides.maxFeePerGas = feeData.maxFeePerGas;
+    } else if (feeData.gasPrice) {
+      counterDeployOverrides.gasPrice = feeData.gasPrice;
+    }
+
+    const deployTx = counterFactory.getDeployTransaction();
+    const estimationRequest: TransactionRequest = {
+      ...deployTx,
+      ...counterDeployOverrides,
+      from: deployerAddress,
+    };
+    const estimatedGas = await deployer.estimateGas(estimationRequest);
+    const bufferedGas = (estimatedGas * 12n) / 10n;
+    counterDeployOverrides.gasLimit = counterDeployOverrides.gasLimit
+      ? counterDeployOverrides.gasLimit > bufferedGas
+        ? counterDeployOverrides.gasLimit
+        : bufferedGas
+      : bufferedGas;
+
+    const counterConstructorGas = await l2Provider.estimateGas(estimationRequest);
+    const deploymentNonceBefore = await l2Provider.getTransactionCount(deployerAddress, "latest");
+    const counterDeployTx = await deployer.sendTransaction({
+      ...estimationRequest,
+      gasLimit: (counterConstructorGas * 12n) / 10n,
+    });
+    logger.info(
+      `Submitted Counter deployment transaction. hash=${counterDeployTx.hash} nonce=${counterDeployTx.nonce} from=${counterDeployTx.from} gasLimit=${formatNullableBigInt(counterDeployTx.gasLimit)} maxFeePerGas=${formatNullableBigInt(counterDeployTx.maxFeePerGas)} maxPriorityFeePerGas=${formatNullableBigInt(counterDeployTx.maxPriorityFeePerGas)} gasPrice=${formatNullableBigInt(counterDeployTx.gasPrice)} chainId=${formatNullableBigInt(counterDeployTx.chainId)}`,
+    );
+    const deploymentReceipt = await counterDeployTx.wait();
+    expect(deploymentReceipt?.status).toEqual(1);
+
+    const deploymentNonce = counterDeployTx.nonce ?? -1;
+    expect(deploymentNonce).toBe(deploymentNonceBefore);
+
+    const counterAddress = deploymentReceipt?.contractAddress ?? ethers.ZeroAddress;
+    logger.info(
+      `Counter deployment receipt. txHash=${counterDeployTx.hash} status=${deploymentReceipt?.status ?? "null"} contractAddress=${counterAddress} blockNumber=${deploymentReceipt?.blockNumber ?? "null"} confirmations=${deploymentReceipt?.confirmations ?? "null"} gasUsed=${formatNullableBigInt(deploymentReceipt?.gasUsed)} cumulativeGasUsed=${formatNullableBigInt(deploymentReceipt?.cumulativeGasUsed)} effectiveGasPrice=${formatNullableBigInt(deploymentReceipt?.effectiveGasPrice)} type=${deploymentReceipt?.type ?? "null"}`,
+    );
+    if (counterAddress === ethers.ZeroAddress) {
+      logger.error(
+        `Counter deployment returned zero address. txHash=${counterDeployTx.hash} logsLength=${deploymentReceipt?.logs?.length ?? 0}`,
+      );
+    }
+    expect(counterAddress).not.toEqual(ethers.ZeroAddress);
+
+    logger.info(
+      `Counter deployed for Credible Layer tests. address=${counterAddress} nonce=${deploymentNonce} deployer=${deployerAddress} gasUsed=${deploymentReceipt?.gasUsed}`,
+    );
+    if (counterAddress !== ethers.ZeroAddress) {
+      const counterCode = await l2Provider.getCode(counterAddress);
+      if (counterCode === "0x") {
+        logger.error(
+          `Counter deployment produced empty code. address=${counterAddress} txHash=${counterDeployTx.hash} blockNumber=${deploymentReceipt?.blockNumber ?? "null"}`,
+        );
+      } else {
+        logger.info(
+          `Counter contract code detected. address=${counterAddress} byteLength=${(counterCode.length - 2) / 2}`,
+        );
+      }
+      expect(counterCode).not.toEqual("0x");
+    }
   });
 });
