@@ -1,9 +1,6 @@
 [submodule "contracts/lib/forge-std"]
 	path = contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "contracts/credible-layer"]
-	path = contracts/credible-layer
-	url = git@github.com:phylaxsystems/credible-layer-contracts.git
 [submodule "contracts/lib/credible-std"]
 	path = contracts/lib/credible-std
 	url = https://github.com/phylaxsystems/credible-std
