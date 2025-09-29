@@ -8,6 +8,21 @@ const assertionDaEndpoint = config.getAssertionDaEndpoint();
 // Skip the entire suite when the Credible stack is not running.
 const describeCredible = assertionDaEndpoint ? describe : describe.skip;
 
+// Gold Path:
+// 1. When pcl store is executed
+//    a. when the pcl store succeeds
+//       i. the assertion should be retrievable from the assertion da
+//          1. when a user submits a transaction to register the transaction on-chain
+//             a. It should revert if the sender is not the AA manager
+//             b. when the transaction is included
+//                i. The assertion should be retrievable from the smart contract
+//                ii. When block.number >= timelock
+//                    1. A transaction incrementing the Counter contract should be included
+//                       a. because the invariants only allow to increment it once
+//                iii. When the block.number >= timelock
+//                     1. An invalidating transaction should not be included in the block
+//                        a. because the assertion invariant is triggered
+
 describeCredible("Credible layer e2e test suite", () => {
   let assertionDaClient: AssertionDaClient;
 
@@ -79,8 +94,9 @@ describeCredible("Credible layer e2e test suite", () => {
 
   it("tracks end-to-end flows between the Credible sidecar and Assertion DA", async () => {
     // Placeholder for the full Credible flow validation.
-    // TODO: Submit an assertion through the sidecar, wait for it to propagate,
-    // and verify the state oracle contract is updated accordingly.
+    // TODO: deploy credible layer contracts, deploy the counter contract,
+    // register the counter assertion using pcl and submit to da,
+    // increment contract once and verify it passes, do it a second time and verify it fails
     expect(true).toBeTruthy();
   });
 });
