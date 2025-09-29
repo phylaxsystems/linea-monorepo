@@ -2,7 +2,8 @@
 ## Setup
 Run `pnpm install` to setup typechain
 
-Run `make start-env-with-tracing-v2-ci` from root directory to spin up local environment
+Run `make start-env-with-tracing-v2-ci` from root directory to spin up local environment.
+For credible layer e2e tests start wirh `make start-credible-tracing-ci`.
 
 
 ## Run tests
