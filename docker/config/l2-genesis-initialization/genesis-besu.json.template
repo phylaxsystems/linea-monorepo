@@ -13,17 +13,15 @@
     "berlinBlock": 0,
     "londonBlock": 0,
     "terminalTotalDifficulty": %TTD%,
-    "shanghaiTime": %SHANGHAI_TIME%,
-    "cancunTime": %CANCUN_TIME%,
-    "pragueTime": %PRAGUE_TIME%,
+    "terminalTotalDifficultyPassed": true, 
+    "shanghaiTime": 0,
+    "cancunTime": 0,
+    "pragueTime": 0,
+    "mergeNetsplitBlock": 0,
+    "ethash": {},
     "depositContractAddress": "0x3a69eD7FA6f6CA1dB2649327c4A2E666130823bE",
     "withdrawalRequestContractAddress": "0x3a69eD7FA6f6CA1dB2649327c4A2E666130823bE",
-    "consolidationRequestContractAddress": "0x9AFC00F4CEaadb97A3822FCA2225FaD78839FBde",
-    "clique": {
-      "createemptyblocks": %CREATE_EMPTY_BLOCKS%,
-      "blockperiodseconds": 1,
-      "epochlength": 1
-    }
+    "consolidationRequestContractAddress": "0x9AFC00F4CEaadb97A3822FCA2225FaD78839FBde"
   },
   "coinbase": "0x0000000000000000000000000000000000000000",
   "difficulty": "0x1",
