@@ -65,7 +65,7 @@ services:
       # RPC server (currently only responds to "ping" method)
       - "9546:9546"
       # Metrics port (if configured)
-      - "9000:9000"
+      - "9013:9000"
     restart: unless-stopped
     networks:
       linea:
