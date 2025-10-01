@@ -446,6 +446,26 @@ export class AssertionDaClient {
     this.pclPath = pclPath;
   }
 
+  public async submitAssertionBytecode(bytecode: string): Promise<{ assertionId: string; signature: string }> {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
+      throw new AssertionDaError("Endpoint is required to submit assertions");
+    }
+
+    const prefixedBytecode = bytecode.startsWith("0x") ? bytecode : `0x${bytecode}`;
+
+    const result = await this.sendRpcRequest<Record<string, unknown>>("da_submit_assertion", [prefixedBytecode]);
+
+    const assertionId = result.id;
+    const signature = result.prover_signature ?? result.signature;
+
+    if (typeof assertionId !== "string" || typeof signature !== "string") {
+      throw new AssertionDaError(`Unexpected response from assertion DA: ${JSON.stringify(result)}`);
+    }
+
+    return { assertionId, signature };
+  }
+
   public async storeAssertion(
     assertionName: string,
     constructorArgs: string[],
@@ -496,12 +516,22 @@ export class AssertionDaClient {
     return { assertionId, signature };
   }
 
-  public async getAssertion(
-    assertionId: string,
-  ): Promise<{ bytecode?: string; signature?: string; soliditySource?: string }> {
+  public async getAssertion(assertionId: string): Promise<{
+    bytecode?: string;
+    signature?: string;
+    soliditySource?: string;
+    encodedConstructorArgs?: string;
+    constructorAbiSignature?: string;
+  }> {
     const result = await this.sendRpcRequest<Record<string, unknown>>("da_get_assertion", [assertionId]);
 
-    const response: { bytecode?: string; signature?: string; soliditySource?: string } = {};
+    const response: {
+      bytecode?: string;
+      signature?: string;
+      soliditySource?: string;
+      encodedConstructorArgs?: string;
+      constructorAbiSignature?: string;
+    } = {};
     if (typeof result.bytecode === "string") {
       response.bytecode = result.bytecode;
     }
@@ -510,6 +540,12 @@ export class AssertionDaClient {
     }
     if (typeof result.solidity_source === "string") {
       response.soliditySource = result.solidity_source;
+    }
+    if (typeof result.encoded_constructor_args === "string") {
+      response.encodedConstructorArgs = result.encoded_constructor_args;
+    }
+    if (typeof result.constructor_abi_signature === "string") {
+      response.constructorAbiSignature = result.constructor_abi_signature;
     }
 
     return response;
