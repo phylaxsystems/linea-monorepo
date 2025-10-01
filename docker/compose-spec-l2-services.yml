@@ -39,7 +39,7 @@ services:
   sequencer:
     hostname: sequencer
     container_name: sequencer
-    image: consensys/linea-besu-package:${BESU_PACKAGE_TAG:-beta-v4.0-rc10-20250923173528-1a4fb69}
+    image: penumbra23/linea-besu-package:ad017736-credible-f23a3d4b
     profiles: [ "l2", "l2-bc", "debug", "external-to-monorepo" ]
     depends_on:
       l2-genesis-initialization:
