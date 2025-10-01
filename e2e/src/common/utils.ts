@@ -438,7 +438,7 @@ type PclSpawnOptions = {
 };
 
 export class AssertionDaClient {
-  private readonly endpoint?: URL;
+  private readonly endpoint: URL | undefined;
   private readonly pclPath: string;
 
   public constructor(endpoint?: URL, pclPath: string = "pcl") {
@@ -451,7 +451,8 @@ export class AssertionDaClient {
     constructorArgs: string[],
     options: PclSpawnOptions = {},
   ): Promise<{ assertionId: string; signature: string }> {
-    if (!this.endpoint) {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
       throw new AssertionDaError("Endpoint is required to store assertions");
     }
 
@@ -459,7 +460,7 @@ export class AssertionDaClient {
       "--json",
       "store",
       "-u",
-      this.endpoint.toString(),
+      endpoint.toString(),
       "--root",
       "solidity",
       assertionName,
@@ -500,18 +501,26 @@ export class AssertionDaClient {
   ): Promise<{ bytecode?: string; signature?: string; soliditySource?: string }> {
     const result = await this.sendRpcRequest<Record<string, unknown>>("da_get_assertion", [assertionId]);
 
-    return {
-      bytecode: typeof result.bytecode === "string" ? result.bytecode : undefined,
-      signature: typeof result.signature === "string" ? result.signature : undefined,
-      soliditySource: typeof result.solidity_source === "string" ? result.solidity_source : undefined,
-    };
+    const response: { bytecode?: string; signature?: string; soliditySource?: string } = {};
+    if (typeof result.bytecode === "string") {
+      response.bytecode = result.bytecode;
+    }
+    if (typeof result.signature === "string") {
+      response.signature = result.signature;
+    }
+    if (typeof result.solidity_source === "string") {
+      response.soliditySource = result.solidity_source;
+    }
+
+    return response;
   }
 
   public async sendRpcRequest<T = unknown>(
     method: string,
     params: unknown[] | Record<string, unknown> = [],
   ): Promise<T> {
-    if (!this.endpoint) {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
       throw new AssertionDaError("Endpoint is required for RPC requests");
     }
 
@@ -528,7 +537,7 @@ export class AssertionDaClient {
       },
     };
 
-    const response = await fetch(this.endpoint.toString(), request);
+    const response = await fetch(endpoint.toString(), request);
     const responseJson = await response.json();
 
     if ("error" in responseJson) {
