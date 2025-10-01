@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it } from "@jest/globals";
 import { ethers, TransactionRequest } from "ethers";
+import type { Signer } from "ethers";
 import { config } from "./config/tests-config";
-import { AssertionDaClient, AssertionDaError } from "./common/utils";
+import { AssertionDaClient, AssertionDaError, pollForBlockNumber } from "./common/utils";
 import { STATE_ORACLE_ADDRESS } from "./common/constants";
 import CounterArtifact from "../../contracts/out/SimpleCounterAssertion.sol/Counter.json";
+import SimpleCounterAssertionArtifact from "../../contracts/out/SimpleCounterAssertion.sol/SimpleCounterAssertion.json";
 
 const ADMIN_VERIFIER_OWNER_ADDRESS = "0x3e06372d794a48552203069915eA91b223297736" as const;
 const EXPECTED_COUNTER_ADDRESS = "0x3bAF7216467522Bb7cfd48f7f216867384296feB" as const;
@@ -12,6 +14,12 @@ const stateOracleAbi = [
   "function MAX_ASSERTIONS_PER_AA() view returns (uint128)",
   "function DA_VERIFIER() view returns (address)",
   "function owner() view returns (address)",
+  "function registerAssertionAdopter(address contractAddress, address adminVerifier, bytes data)",
+  "function addAssertion(address contractAddress, bytes32 assertionId, bytes metadata, bytes proof)",
+  "function hasAssertion(address contractAddress, bytes32 assertionId) view returns (bool)",
+  "function getAssertionWindow(address contractAddress, bytes32 assertionId) view returns (uint128 activationBlock, uint128 deactivationBlock)",
+  "function getManager(address contractAddress) view returns (address)",
+  "function isAdminVerifierRegistered(address adminVerifier) view returns (bool)",
 ];
 const adminVerifierAbi = [
   "function verifyAdmin(address contractAddress, address requester, bytes data) view returns (bool)",
@@ -20,6 +28,9 @@ const adminVerifierAbi = [
 const assertionDaEndpoint = config.getAssertionDaEndpoint();
 
 const formatNullableBigInt = (value: bigint | null | undefined) => (value == null ? "null" : value.toString());
+
+const normalizeAddress = (address: string) => ethers.getAddress(address);
+const addressesEqual = (a: string, b: string) => normalizeAddress(a) === normalizeAddress(b);
 
 // Skip the entire suite when the Credible stack is not running.
 const describeCredible = assertionDaEndpoint ? describe : describe.skip;
@@ -41,6 +52,7 @@ const describeCredible = assertionDaEndpoint ? describe : describe.skip;
 
 describeCredible("Credible layer e2e test suite", () => {
   let assertionDaClient: AssertionDaClient;
+  let latestAssertionId: string | null = null;
 
   const knownAssertionId = process.env.CREDIBLE_TEST_ASSERTION_ID;
   const testAssertionArtifact = process.env.CREDIBLE_ASSERTION_ARTIFACT;
@@ -57,7 +69,7 @@ describeCredible("Credible layer e2e test suite", () => {
         .split(",")
         .map((arg) => arg.trim())
         .filter(Boolean)
-    : [STATE_ORACLE_ADDRESS];
+    : [EXPECTED_COUNTER_ADDRESS];
 
   beforeAll(() => {
     if (!assertionDaEndpoint) {
@@ -155,6 +167,204 @@ describeCredible("Credible layer e2e test suite", () => {
 
     const counterAddress = await ensureCounterDeployment({ logger, l2Provider, deployer, deployerAddress });
     expect(counterAddress).toEqual(EXPECTED_COUNTER_ADDRESS);
+  });
+
+  it("registers the SimpleCounter assertion and approves it on the StateOracle", async () => {
+    if (!assertionDaClient) {
+      throw new AssertionDaError("Assertion DA client not initialized");
+    }
+
+    const logger = global.logger;
+    const l2Provider = config.getL2Provider();
+    const accountManager = config.getL2AccountManager();
+    const defaultManagerSigner = accountManager.whaleAccount(0);
+    const defaultManagerAddress = normalizeAddress(await defaultManagerSigner.getAddress());
+
+    const stateOracleReadonly = new ethers.Contract(STATE_ORACLE_ADDRESS, stateOracleAbi, l2Provider);
+
+    const adminVerifierRegistered = await stateOracleReadonly.isAdminVerifierRegistered(ADMIN_VERIFIER_OWNER_ADDRESS);
+    expect(adminVerifierRegistered).toBe(true);
+
+    const initialManager = await stateOracleReadonly.getManager(EXPECTED_COUNTER_ADDRESS);
+    let managerSigner: Signer = defaultManagerSigner;
+    let managerAddress = defaultManagerAddress;
+
+    if (initialManager !== ethers.ZeroAddress && !addressesEqual(initialManager, defaultManagerAddress)) {
+      const normalizedManager = normalizeAddress(initialManager);
+      logger.info(
+        `Counter already registered with manager ${normalizedManager}. Attempting to use RPC signer for transactions.`,
+      );
+      try {
+        managerSigner = await l2Provider.getSigner(normalizedManager);
+        managerAddress = normalizeAddress(await managerSigner.getAddress());
+      } catch (error) {
+        throw new Error(
+          `Unable to obtain signer for registered counter manager ${normalizedManager}: ${(error as Error).message}`,
+        );
+      }
+    } else if (initialManager === ethers.ZeroAddress) {
+      logger.info(
+        `Counter not yet registered with StateOracle. Using whale account ${defaultManagerAddress} as manager.`,
+      );
+    } else {
+      logger.info(
+        `Using existing counter manager ${defaultManagerAddress} from whale account for assertion registration.`,
+      );
+    }
+
+    const stateOracle = stateOracleReadonly.connect(managerSigner);
+
+    if (initialManager === ethers.ZeroAddress) {
+      const registerTx = await stateOracle.registerAssertionAdopter(
+        EXPECTED_COUNTER_ADDRESS,
+        ADMIN_VERIFIER_OWNER_ADDRESS,
+        "0x",
+      );
+      const registerReceipt = await registerTx.wait();
+      expect(registerReceipt?.status).toEqual(1);
+
+      const registeredManager = await stateOracleReadonly.getManager(EXPECTED_COUNTER_ADDRESS);
+      expect(addressesEqual(registeredManager, managerAddress)).toBe(true);
+      logger.info(
+        `Registered counter contract with StateOracle. counter=${EXPECTED_COUNTER_ADDRESS} manager=${managerAddress} txHash=${registerTx.hash}`,
+      );
+    }
+
+    const simpleAssertionBytecode =
+      typeof SimpleCounterAssertionArtifact.bytecode === "string"
+        ? SimpleCounterAssertionArtifact.bytecode
+        : SimpleCounterAssertionArtifact.bytecode.object;
+
+    if (!simpleAssertionBytecode || simpleAssertionBytecode === "0x") {
+      throw new Error("SimpleCounterAssertion artifact bytecode is missing");
+    }
+
+    const simpleAssertionFactory = new ethers.ContractFactory(
+      SimpleCounterAssertionArtifact.abi,
+      simpleAssertionBytecode,
+      managerSigner,
+    );
+    const simpleAssertionDeployRequest = await simpleAssertionFactory.getDeployTransaction(EXPECTED_COUNTER_ADDRESS);
+    const simpleAssertionInitCode = simpleAssertionDeployRequest.data;
+
+    if (!simpleAssertionInitCode || simpleAssertionInitCode === "0x") {
+      throw new Error("SimpleCounterAssertion init code is missing");
+    }
+
+    const { assertionId, signature } = await assertionDaClient.submitAssertionBytecode(simpleAssertionInitCode);
+    latestAssertionId = assertionId;
+    expect(assertionId).toMatch(/^0x[0-9a-fA-F]{64}$/);
+    expect(signature).toMatch(/^0x[0-9a-fA-F]+$/);
+
+    logger.info(
+      `Stored SimpleCounter assertion on DA. assertionId=${assertionId} signatureLength=${(signature.length - 2) / 2}`,
+    );
+
+    const assertionAlreadyTracked = await stateOracleReadonly.hasAssertion(EXPECTED_COUNTER_ADDRESS, assertionId);
+
+    if (!assertionAlreadyTracked) {
+      const addTx = await stateOracle.addAssertion(EXPECTED_COUNTER_ADDRESS, assertionId, "0x", signature);
+      const addReceipt = await addTx.wait();
+      expect(addReceipt?.status).toEqual(1);
+      logger.info(
+        `Assertion approved on-chain. assertionId=${assertionId} txHash=${addTx.hash} blockNumber=${
+          addReceipt?.blockNumber ?? "null"
+        }`,
+      );
+    } else {
+      logger.info(`Assertion ${assertionId} already active for counter ${EXPECTED_COUNTER_ADDRESS}, skipping add.`);
+    }
+
+    const [activationBlock, deactivationBlock] = await stateOracleReadonly.getAssertionWindow(
+      EXPECTED_COUNTER_ADDRESS,
+      assertionId,
+    );
+
+    expect(activationBlock).toBeGreaterThan(0n);
+    expect(deactivationBlock).toEqual(0n);
+
+    logger.info(
+      `Assertion window for counter ${EXPECTED_COUNTER_ADDRESS}. activationBlock=${activationBlock} deactivationBlock=${deactivationBlock}`,
+    );
+  });
+
+  it("allows a single increment but rejects a second one once the assertion is active", async () => {
+    if (!latestAssertionId) {
+      throw new AssertionDaError(
+        "SimpleCounter assertion id not captured. Ensure the registration test ran successfully.",
+      );
+    }
+
+    const logger = global.logger;
+    const l2Provider = config.getL2Provider();
+    const accountManager = config.getL2AccountManager();
+    const incrementSigner = accountManager.whaleAccount(1);
+    const incrementAddress = normalizeAddress(await incrementSigner.getAddress());
+
+    const stateOracleReadonly = new ethers.Contract(STATE_ORACLE_ADDRESS, stateOracleAbi, l2Provider);
+    const [activationBlock] = await stateOracleReadonly.getAssertionWindow(EXPECTED_COUNTER_ADDRESS, latestAssertionId);
+    const activationBlockNumber = Number(activationBlock);
+    const currentBlockNumber = await l2Provider.getBlockNumber();
+
+    if (currentBlockNumber < activationBlockNumber) {
+      logger.info(
+        `Waiting for SimpleCounter assertion activation. activationBlock=${activationBlockNumber} currentBlock=${currentBlockNumber}`,
+      );
+      const hasReachedActivation = await pollForBlockNumber(l2Provider, activationBlockNumber);
+      expect(hasReachedActivation).toBe(true);
+    }
+
+    const counterReadonly = new ethers.Contract(EXPECTED_COUNTER_ADDRESS, CounterArtifact.abi, l2Provider);
+    const counter = counterReadonly.connect(incrementSigner);
+
+    const initialCounterValue = await counterReadonly.number();
+    logger.info(
+      `Attempting counter increments. signer=${incrementAddress} initialValue=${initialCounterValue} assertionId=${latestAssertionId}`,
+    );
+
+    const firstTx = await counter.increment();
+    logger.info(`Submitted first increment transaction. txHash=${firstTx.hash}`);
+    const firstReceipt = await firstTx.wait();
+    expect(firstReceipt?.status).toEqual(1);
+
+    const afterFirstIncrement = await counterReadonly.number();
+    expect(afterFirstIncrement).toEqual(initialCounterValue + 1n);
+
+    const secondTx = await counter.increment();
+    logger.info(`Submitted second increment transaction. txHash=${secondTx.hash}`);
+
+    let secondReceipt: ethers.TransactionReceipt | null = null;
+    let secondErrorMessage: string | null = null;
+
+    try {
+      secondReceipt = await secondTx.wait();
+    } catch (error) {
+      secondErrorMessage = error instanceof Error ? error.message : String(error);
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "receipt" in error &&
+        (error as { receipt?: ethers.TransactionReceipt | null }).receipt
+      ) {
+        secondReceipt = (error as { receipt?: ethers.TransactionReceipt | null }).receipt ?? null;
+      }
+      if (secondErrorMessage) {
+        logger.info(`Second increment failed as expected. signer=${incrementAddress} error=${secondErrorMessage}`);
+      }
+    }
+
+    if (secondReceipt) {
+      expect(secondReceipt.status).not.toEqual(1);
+    } else {
+      expect(secondErrorMessage).toBeTruthy();
+    }
+
+    if (secondErrorMessage) {
+      expect(secondErrorMessage.toLowerCase()).toContain("counter cannot be greater than 1");
+    }
+
+    const finalCounterValue = await counterReadonly.number();
+    expect(finalCounterValue).toEqual(afterFirstIncrement);
   });
 });
 
