@@ -49,7 +49,7 @@ cache-last-block-headers-preload-enabled=true
 cache-last-block-headers=50
 
 # plugins
-plugins=["LineaEstimateGasEndpointPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin","LineaForcedTransactionEndpointsPlugin"]
+plugins=["LineaEstimateGasEndpointPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin","LineaForcedTransactionEndpointsPlugin","CredibleLayerPlugin"]
 plugin-linea-module-limit-file-path="/var/lib/besu/traces-limits.toml"
 plugin-linea-deny-list-path="/var/lib/besu/deny-list.txt"
 plugin-linea-estimate-gas-compatibility-mode-enabled=false
@@ -72,6 +72,9 @@ plugin-linea-extra-data-set-min-gas-price-enabled=false
 plugin-linea-estimate-gas-min-margin="1.2"
 plugin-linea-limitless-enabled=false
 plugin-linea-forced-tx-status-cache-size=100
+plugin-linea-delegate-code-tx-enabled=true
+plugin-credible-sidecar-rpc-endpoints=["http://credible-sidecar:9546/tx"]
+plugin-credible-sidecar-rpc-fallback-endpoints=["http://credible-sidecar-2:9546/tx"]
 strict-tx-replay-protection-enabled=false
 
 # should uncomment only when the linea-sequencer plugin supports liveness

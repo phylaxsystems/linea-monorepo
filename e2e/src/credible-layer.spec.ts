@@ -333,34 +333,30 @@ describeCredible("Credible layer e2e test suite", () => {
     const secondTx = await counter.increment();
     logger.info(`Submitted second increment transaction. txHash=${secondTx.hash}`);
 
+    const parsedSecondTimeout = Number.parseInt(process.env.CREDIBLE_ASSERTION_TX_TIMEOUT_MS ?? "120000", 10);
+    const secondTxTimeoutMs = Number.isFinite(parsedSecondTimeout) ? parsedSecondTimeout : 120000;
     let secondReceipt: ethers.TransactionReceipt | null = null;
-    let secondErrorMessage: string | null = null;
+    let secondError: Error | null = null;
 
     try {
-      secondReceipt = await secondTx.wait();
+      secondReceipt = await l2Provider.waitForTransaction(secondTx.hash, undefined, secondTxTimeoutMs);
     } catch (error) {
-      secondErrorMessage = error instanceof Error ? error.message : String(error);
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "receipt" in error &&
-        (error as { receipt?: ethers.TransactionReceipt | null }).receipt
-      ) {
-        secondReceipt = (error as { receipt?: ethers.TransactionReceipt | null }).receipt ?? null;
-      }
-      if (secondErrorMessage) {
-        logger.info(`Second increment failed as expected. signer=${incrementAddress} error=${secondErrorMessage}`);
-      }
+      secondError = error instanceof Error ? error : new Error(String(error));
     }
 
     if (secondReceipt) {
+      logger.info(
+        `Second increment mined. status=${secondReceipt.status ?? "null"} blockNumber=${
+          secondReceipt.blockNumber ?? "null"
+        }`,
+      );
       expect(secondReceipt.status).not.toEqual(1);
     } else {
-      expect(secondErrorMessage).toBeTruthy();
-    }
-
-    if (secondErrorMessage) {
-      expect(secondErrorMessage.toLowerCase()).toContain("counter cannot be greater than 1");
+      const errorMessage = secondError?.message ?? "timeout awaiting transaction";
+      expect(errorMessage.toLowerCase()).toMatch(/timeout|replacement|revert/);
+      logger.info(
+        `Second increment not included within timeout as expected. signer=${incrementAddress} reason=${errorMessage}`,
+      );
     }
 
     const finalCounterValue = await counterReadonly.number();
