@@ -1,0 +1,15 @@
+FROM node:24.5-alpine
+WORKDIR /app
+
+RUN apk add g++ make python3
+RUN npm install -g pnpm@latest-10
+
+COPY package.json .
+COPY pnpm-lock.yaml .
+COPY pnpm-workspace.yaml .
+
+RUN pnpm install
+COPY contracts contracts
+
+RUN pnpm --filter contracts install
+COPY tsconfig.json .
