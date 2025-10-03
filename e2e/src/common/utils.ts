@@ -11,7 +11,7 @@ import {
   toBeHex,
 } from "ethers";
 import path from "path";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { L2MessageServiceV1 as L2MessageService, TokenBridgeV1_1 as TokenBridge, LineaRollupV6 } from "../typechain";
 import { PayableOverrides, TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog } from "../typechain/common";
 import { MessageEvent, SendMessageArgs } from "./types";
@@ -405,6 +405,223 @@ export class TransactionExclusionClient {
     };
     const response = await fetch(this.endpoint, request);
     return await response.json();
+  }
+}
+
+export class AssertionDaError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "AssertionDaError";
+  }
+}
+
+type PclSpawnOptions = {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
+};
+
+export class AssertionDaClient {
+  private readonly endpoint: URL | undefined;
+  private readonly pclPath: string;
+
+  public constructor(endpoint?: URL, pclPath: string = "pcl") {
+    this.endpoint = endpoint;
+    this.pclPath = pclPath;
+  }
+
+  public async submitAssertionBytecode(bytecode: string): Promise<{ assertionId: string; signature: string }> {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
+      throw new AssertionDaError("Endpoint is required to submit assertions");
+    }
+
+    const prefixedBytecode = bytecode.startsWith("0x") ? bytecode : `0x${bytecode}`;
+
+    const result = await this.sendRpcRequest<Record<string, unknown>>("da_submit_assertion", [prefixedBytecode]);
+
+    const assertionId = result.id;
+    const signature = result.prover_signature ?? result.signature;
+
+    if (typeof assertionId !== "string" || typeof signature !== "string") {
+      throw new AssertionDaError(`Unexpected response from assertion DA: ${JSON.stringify(result)}`);
+    }
+
+    return { assertionId, signature };
+  }
+
+  public async storeAssertion(
+    assertionName: string,
+    constructorArgs: string[],
+    options: PclSpawnOptions = {},
+  ): Promise<{ assertionId: string; signature: string }> {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
+      throw new AssertionDaError("Endpoint is required to store assertions");
+    }
+
+    const pclArgs = [
+      "--json",
+      "store",
+      "-u",
+      endpoint.toString(),
+      "--root",
+      "solidity",
+      assertionName,
+      ...constructorArgs,
+    ];
+
+    const stdout = await this.runPcl(pclArgs, options);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stdout);
+    } catch (err) {
+      throw new AssertionDaError(`Failed to parse PCL output: ${(err as Error).message}`);
+    }
+
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new AssertionDaError("Unexpected response type from PCL");
+    }
+
+    const maybeResult = parsed as Record<string, unknown>;
+
+    if ("error" in maybeResult) {
+      throw new AssertionDaError(`Error storing assertion: ${JSON.stringify(maybeResult.error)}`);
+    }
+
+    const assertionId = maybeResult.assertion_id;
+    const signature = maybeResult.signature;
+
+    if (typeof assertionId !== "string" || typeof signature !== "string") {
+      throw new AssertionDaError(`Unexpected response from PCL: ${JSON.stringify(maybeResult)}`);
+    }
+
+    return { assertionId, signature };
+  }
+
+  public async getAssertion(assertionId: string): Promise<{
+    bytecode?: string;
+    signature?: string;
+    soliditySource?: string;
+    encodedConstructorArgs?: string;
+    constructorAbiSignature?: string;
+  }> {
+    const result = await this.sendRpcRequest<Record<string, unknown>>("da_get_assertion", [assertionId]);
+
+    const response: {
+      bytecode?: string;
+      signature?: string;
+      soliditySource?: string;
+      encodedConstructorArgs?: string;
+      constructorAbiSignature?: string;
+    } = {};
+    if (typeof result.bytecode === "string") {
+      response.bytecode = result.bytecode;
+    }
+    if (typeof result.signature === "string") {
+      response.signature = result.signature;
+    }
+    if (typeof result.solidity_source === "string") {
+      response.soliditySource = result.solidity_source;
+    }
+    if (typeof result.encoded_constructor_args === "string") {
+      response.encodedConstructorArgs = result.encoded_constructor_args;
+    }
+    if (typeof result.constructor_abi_signature === "string") {
+      response.constructorAbiSignature = result.constructor_abi_signature;
+    }
+
+    return response;
+  }
+
+  public async sendRpcRequest<T = unknown>(
+    method: string,
+    params: unknown[] | Record<string, unknown> = [],
+  ): Promise<T> {
+    const endpoint = this.endpoint;
+    if (!endpoint) {
+      throw new AssertionDaError("Endpoint is required for RPC requests");
+    }
+
+    const request = {
+      method: "post",
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method,
+        params,
+        id: generateRandomInt(),
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    const response = await fetch(endpoint.toString(), request);
+    const responseJson = await response.json();
+
+    if ("error" in responseJson) {
+      throw new AssertionDaError(
+        typeof responseJson.error === "object" ? JSON.stringify(responseJson.error) : String(responseJson.error),
+      );
+    }
+
+    if (!("result" in responseJson)) {
+      throw new AssertionDaError(`Unexpected response format: ${JSON.stringify(responseJson)}`);
+    }
+
+    return responseJson.result as T;
+  }
+
+  private async runPcl(args: string[], options: PclSpawnOptions): Promise<string> {
+    return await new Promise((resolve, reject) => {
+      const child = spawn(this.pclPath, args, {
+        cwd: options.cwd,
+        env: { ...process.env, ...options.env },
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      child.stdout?.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      child.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      const timeout = options.timeoutMs
+        ? setTimeout(() => {
+            child.kill();
+            reject(new AssertionDaError(`PCL command timed out after ${options.timeoutMs}ms`));
+          }, options.timeoutMs)
+        : undefined;
+
+      child.on("error", (error) => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        reject(new AssertionDaError(`Failed to execute PCL command: ${error.message}`));
+      });
+
+      child.on("close", (code) => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+
+        if (code !== 0) {
+          reject(new AssertionDaError(`PCL command exited with code ${code}. stderr=${stderr || "<empty>"}`));
+          return;
+        }
+
+        if (stderr.trim().length > 0) {
+          logger.warn(`PCL command emitted stderr: ${stderr}`);
+        }
+
+        resolve(stdout.trim());
+      });
+    });
   }
 }
 

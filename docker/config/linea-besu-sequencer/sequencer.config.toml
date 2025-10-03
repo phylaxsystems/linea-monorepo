@@ -20,7 +20,7 @@ engine-jwt-disabled=true
 rpc-http-enabled=true
 rpc-http-host="0.0.0.0"
 rpc-http-port=8545
-rpc-http-api=["ADMIN","DEBUG","NET","ETH","ENGINE","CLIQUE","MINER","WEB3","TRACE","LINEA"]
+rpc-http-api=["ADMIN","DEBUG","NET","ETH","ENGINE","MINER","WEB3","TRACE","LINEA", "TXPOOL"]
 rpc-http-cors-origins=["*"]
 rpc-http-max-active-connections=20000
 
@@ -28,7 +28,7 @@ rpc-http-max-active-connections=20000
 rpc-ws-enabled=true
 rpc-ws-host="0.0.0.0"
 rpc-ws-port=8546
-rpc-ws-api=["ADMIN","DEBUG","NET","ETH","CLIQUE","MINER","WEB3","TRACE","LINEA"]
+rpc-ws-api=["ADMIN","DEBUG","NET","ETH","MINER","WEB3","TRACE","LINEA"]
 rpc-ws-max-active-connections=200
 
 # graphql
@@ -44,10 +44,10 @@ tx-pool-no-local-priority=false
 api-gas-and-priority-fee-limiting-enabled=false
 api-gas-and-priority-fee-lower-bound-coefficient=120
 api-gas-and-priority-fee-upper-bound-coefficient=300
-poa-block-txs-selection-max-time=1000
+#poa-block-txs-selection-max-time=1000
 
 # plugins
-plugins=["LineaEstimateGasEndpointPlugin","LineaL1FinalizationTagUpdaterPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin"]
+plugins=["LineaEstimateGasEndpointPlugin","LineaL1FinalizationTagUpdaterPlugin","LineaExtraDataPlugin","LineaTransactionPoolValidatorPlugin","LineaBundleEndpointsPlugin","LineaSetExtraDataEndpointPlugin","LineaTransactionSelectorPlugin","CredibleLayerPlugin"]
 plugin-linea-module-limit-file-path="/var/lib/besu/traces-limits.toml"
 plugin-linea-deny-list-path="/var/lib/besu/deny-list.txt"
 plugin-linea-estimate-gas-compatibility-mode-enabled=false
@@ -67,7 +67,9 @@ plugin-linea-fixed-gas-cost-wei=30000000
 plugin-linea-variable-gas-cost-wei=1000000000
 plugin-linea-extra-data-set-min-gas-price-enabled=false
 plugin-linea-estimate-gas-min-margin="1.2"
-plugin-linea-limitless-enabled=false
+plugin-linea-limitless-enabled=true
+plugin-credible-sidecar-rpc-endpoints=["http://credible-sidecar:9546/tx"]
+plugin-credible-sidecar-rpc-fallback-endpoints=["http://credible-sidecar-2:9546/tx"]
 strict-tx-replay-protection-enabled=false
 
 # should uncomment only when the linea-sequencer plugin supports liveness 

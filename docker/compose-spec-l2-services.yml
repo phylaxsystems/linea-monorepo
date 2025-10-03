@@ -39,7 +39,7 @@ services:
   sequencer:
     hostname: sequencer
     container_name: sequencer
-    image: consensys/linea-besu-package:${BESU_PACKAGE_TAG:-beta-v4.0-rc10-20250923173528-1a4fb69}
+    image: ghcr.io/phylaxsystems/linea-monorepo/linea-besu-package:18f4b20a116b33982b88f7f240ca3a71ea042954
     profiles: [ "l2", "l2-bc", "debug", "external-to-monorepo" ]
     depends_on:
       l2-genesis-initialization:
@@ -74,7 +74,7 @@ services:
       - ./config/linea-besu-sequencer/key:/var/lib/besu/key:ro
       - ./config/linea-besu-sequencer/log4j.xml:/var/lib/besu/log4j.xml:ro
       - ./config/linea-besu-sequencer/tls-files:/var/lib/besu/tls-files/
-      - ../config/common/traces-limits-v2.toml:/var/lib/besu/traces-limits.toml:ro
+      - ../config/common/traces-limits-limitless.toml:/var/lib/besu/traces-limits.toml:ro
       - ./config/l2-genesis-initialization:/initialization/:ro
     networks:
       l1network:
@@ -150,7 +150,7 @@ services:
       - ./config/l2-node-besu/l2-node-besu-config.toml:/var/lib/besu/l2-node-besu.config.toml:ro
       - ./config/linea-besu-sequencer/deny-list.txt:/var/lib/besu/deny-list.txt:ro
       - ./config/l2-node-besu/log4j.xml:/var/lib/besu/log4j.xml:ro
-      - ../config/common/traces-limits-v2.toml:/var/lib/besu/traces-limits.toml:ro
+      - ../config/common/traces-limits-limitless.toml:/var/lib/besu/traces-limits.toml:ro
       - ./config/l2-genesis-initialization:/initialization/:ro
       - ../tmp/local/:/data/:rw
     networks:
@@ -194,7 +194,7 @@ services:
       - ./config/l2-node-besu/l2-node-besu-config.toml:/var/lib/besu/l2-node-besu.config.toml:ro
       - ./config/linea-besu-sequencer/deny-list.txt:/var/lib/besu/deny-list.txt:ro
       - ./config/l2-node-besu/log4j.xml:/var/lib/besu/log4j.xml:ro
-      - ../config/common/traces-limits-v2.toml:/var/lib/besu/traces-limits.toml:ro
+      - ../config/common/traces-limits-limitless.toml:/var/lib/besu/traces-limits.toml:ro
       - ./config/l2-genesis-initialization:/initialization/:ro
       - ../tmp/local/:/data/:rw
     networks:
