@@ -76,17 +76,24 @@ services:
     image: ghcr.io/phylaxsystems/credible-sdk/assertion-da-dev:main
     container_name: assertion-da
     hostname: assertion-da
+    depends_on:
+      otel-collector:
+        condition: service_started
     restart: unless-stopped
     ports:
       - "5001:5001"
       - "9012:9012"
     environment:
       - RUST_LOG=debug
+      - OTEL_LEVEL=debug
+      - TRACING_LOG_JSON=true
       - DB_PATH=/etc/credible/assertions
       - DA_LISTEN_ADDR=0.0.0.0:5001
       - DA_CACHE_SIZE=1000000
       - DA_PRIVATE_KEY=0xdd7e619d26d7eef795e3b5144307204f2f5d7d08298d04b926e874c6d9d43e75
       - OTEL_SERVICE_NAME=assertion-da
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - DA_LOG_LEVEL=debug
       - DA_METRICS_ADDR=0.0.0.0:9012
       - TRACING_METRICS_PORT=9000
@@ -107,6 +114,8 @@ services:
         condition: service_healthy
       assertion-da:
         condition: service_started
+      otel-collector:
+        condition: service_started
     command:
       - "--transport.protocol=grpc"
       - "--transport.bind-addr=0.0.0.0:50051"
@@ -120,7 +129,11 @@ services:
       - "--state.besu-client-ws-url=ws://sequencer:8546"
     environment:
       - RUST_LOG=debug
+      - OTEL_LEVEL=debug
+      - TRACING_LOG_JSON=true
       - OTEL_SERVICE_NAME=credible-sidecar
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - TRACING_METRICS_PORT=9000
     ports:
       - "50051:50051"
@@ -132,6 +145,87 @@ services:
       linea:
         ipv4_address: 11.11.11.205
 
+  otel-collector:
+    image: otel/opentelemetry-collector:0.99.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    depends_on:
+      tempo:
+        condition: service_started
+    volumes:
+      - ./config/observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      linea:
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./config/observability/tempo-config.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4319:4317"
+    networks:
+      linea:
+
+  loki:
+    image: grafana/loki:2.9.7
+    container_name: loki
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./config/observability/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/var/loki
+    ports:
+      - "3100:3100"
+    networks:
+      linea:
+
+  promtail:
+    image: grafana/promtail:2.9.7
+    container_name: promtail
+    command: ["--config.file=/etc/promtail/promtail-config.yaml"]
+    depends_on:
+      - loki
+    volumes:
+      - ./config/observability/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - promtail-positions:/tmp
+    networks:
+      linea:
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    volumes:
+      - ./config/observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      linea:
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - ./config/observability/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./config/observability/grafana-datasources:/etc/grafana/provisioning/datasources:ro
+      - ./config/observability/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      linea:
+
 networks:
   linea:
     driver: bridge
@@ -142,3 +236,8 @@ networks:
 volumes:
   assertion-store:
   sidecar-store:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+  promtail-positions:
