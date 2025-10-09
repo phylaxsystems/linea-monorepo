@@ -13,17 +13,17 @@
     <Logger name="org.hyperledger.besu" level="WARN" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="org.hyperledger.besu.consensus.qbft" level="DEBUG"
+    <Logger name="org.hyperledger.besu.consensus.qbft" level="INFO"
             additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="tech.pegasys.teku" level="TRACE" additivity="false">
+    <Logger name="tech.pegasys.teku" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="maru" level="DEBUG" additivity="false">
+    <Logger name="maru" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="clients" level="DEBUG" additivity="false">
+    <Logger name="clients" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
     <Root level="${sys:root.log.level}">
