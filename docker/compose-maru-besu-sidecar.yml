@@ -92,8 +92,9 @@ services:
       - DA_CACHE_SIZE=1000000
       - DA_PRIVATE_KEY=0xdd7e619d26d7eef795e3b5144307204f2f5d7d08298d04b926e874c6d9d43e75
       - OTEL_SERVICE_NAME=assertion-da
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
       - DA_LOG_LEVEL=debug
       - DA_METRICS_ADDR=0.0.0.0:9012
       - TRACING_METRICS_PORT=9000
@@ -132,8 +133,9 @@ services:
       - OTEL_LEVEL=debug
       - TRACING_LOG_JSON=true
       - OTEL_SERVICE_NAME=credible-sidecar
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
       - TRACING_METRICS_PORT=9000
     ports:
       - "50051:50051"
