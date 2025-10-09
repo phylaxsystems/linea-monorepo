@@ -37,4 +37,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           context: ./linea-besu-package/tmp
           file: ./linea-besu-package/linea-besu/Dockerfile
-          tags: ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.ref_name }}
