@@ -1,8 +1,6 @@
 #!/bin/bash
 
-source ./scripts/assemble-packages.sh
-
-cd ..
+set -e
 
 # Required parameters
 OWNER="phylaxsystems"
@@ -11,7 +9,7 @@ GROUP_ID="net.phylax.credible"
 ARTIFACT_ID="credible-layer-besu-plugin"
 VERSION="0.3.0-87c288c4"
 
-OUTPUT_LOC="./tmp/besu/plugins/$ARTIFACT_ID-$VERSION.jar"
+OUTPUT_LOC="./linea-besu/besu/plugins/$ARTIFACT_ID-$VERSION.jar"
 
 # Download using curl
 response=$(curl -s -w "%{http_code}" -L -H "Authorization: token $GH_TOKEN" \
