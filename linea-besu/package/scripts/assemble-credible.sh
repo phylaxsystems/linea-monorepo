@@ -7,7 +7,7 @@ OWNER="phylaxsystems"
 REPO="credible-layer-besu-plugin"
 GROUP_ID="net.phylax.credible"
 ARTIFACT_ID="credible-layer-besu-plugin"
-VERSION="0.3.0-87c288c4"
+VERSION="0.3.0-51e93cb0"
 
 OUTPUT_LOC="./linea-besu/besu/plugins/$ARTIFACT_ID-$VERSION.jar"
 
