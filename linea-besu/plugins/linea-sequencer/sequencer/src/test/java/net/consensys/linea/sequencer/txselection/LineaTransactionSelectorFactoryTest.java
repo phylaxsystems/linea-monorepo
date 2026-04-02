@@ -51,6 +51,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.HardforkId;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.plugin.data.ProcessableBlockHeader;
 import org.hyperledger.besu.plugin.data.TransactionSelectionResult;
@@ -275,6 +276,7 @@ class LineaTransactionSelectorFactoryTest {
   static class FailedTransactionSelectionResultProvider implements ArgumentsProvider {
     @SuppressWarnings("deprecation")
     @Override
+    @SuppressWarnings("deprecation")
     public Stream<? extends Arguments> provideArguments(
         org.junit.jupiter.api.extension.ExtensionContext context) {
       return Stream.of(
