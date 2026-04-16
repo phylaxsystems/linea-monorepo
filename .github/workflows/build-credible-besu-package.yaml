@@ -28,8 +28,18 @@ jobs:
           fleet_github_app_private_key: ''
 
       - name: Download Credible plugin JAR
+        id: credible_plugin
         run: |
-          cd linea-besu-package && ./scripts/assemble-credible.sh
+          cd linea-besu-package
+          ./scripts/assemble-credible.sh
+          jar_path=$(find ./linea-besu/besu/plugins -maxdepth 1 -type f -name 'credible-layer-besu-plugin-*.jar' | head -n 1)
+          if [ -z "$jar_path" ]; then
+            echo "Credible plugin jar not found after assembly" >&2
+            exit 1
+          fi
+          version="${jar_path##*/credible-layer-besu-plugin-}"
+          version="${version%.jar}"
+          echo "credible_plugin_version=$version" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -43,6 +53,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Normalize docker ref tag
+        id: docker_ref
+        run: |
+          echo "value=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -51,5 +66,5 @@ jobs:
           context: ./linea-besu-package/linea-besu
           file: ./linea-besu-package/linea-besu/Dockerfile
           tags: |
-            ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.sha }}-${{ steps.credible_plugin.outputs.credible_plugin_version }}
+            ghcr.io/${{ github.repository }}/linea-besu-package:${{ steps.docker_ref.outputs.value }}-${{ steps.credible_plugin.outputs.credible_plugin_version }}
