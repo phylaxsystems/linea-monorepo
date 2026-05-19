@@ -30,7 +30,7 @@ jobs:
       - name: Download Credible plugin JAR
         id: credible_plugin
         run: |
-          cd linea-besu-package
+          cd linea-besu/package
           ./scripts/assemble-credible.sh
           jar_path=$(find ./linea-besu/besu/plugins -maxdepth 1 -type f -name 'credible-layer-besu-plugin-*.jar' | head -n 1)
           if [ -z "$jar_path" ]; then
@@ -63,8 +63,8 @@ jobs:
         with:
           push: true
           platforms: linux/amd64,linux/arm64
-          context: ./linea-besu-package/linea-besu
-          file: ./linea-besu-package/linea-besu/Dockerfile
+          context: ./linea-besu/package/linea-besu
+          file: ./linea-besu/package/linea-besu/Dockerfile
           tags: |
             ghcr.io/${{ github.repository }}/linea-besu-package:${{ github.sha }}-${{ steps.credible_plugin.outputs.credible_plugin_version }}
             ghcr.io/${{ github.repository }}/linea-besu-package:${{ steps.docker_ref.outputs.value }}-${{ steps.credible_plugin.outputs.credible_plugin_version }}
