@@ -26,6 +26,7 @@
 - *(e2e)* Trying to fix rare profitability issues, FTX fix (#3388)
 - *(prover)* Bump BLOCKHASH module limit from 2048 to 4096 (#3426)
 - *(coordinator)* Drop insecure FileWriter temp-file fallback (CodeQL 21207) (#3413)
+- *(besu-plugins)* Removed mutual exclusiveness of the txpool and blo… (#3416)
 
 ### 🚜 Refactor
 
