@@ -68,3 +68,4 @@
 - *(packages)* Rename npm package scope (#3324)
 - *(deps)* Update eligible patch and minor dependencies (#3366)
 - Update gnark to a3ad59ad083caac7691cba84a497d4d7c1759d2a (#3402)
+- *(deps)* Bump Node and pnpm (#3449)
