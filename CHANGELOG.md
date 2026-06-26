@@ -29,6 +29,7 @@
 - *(besu-plugins)* Removed mutual exclusiveness of the txpool and blo… (#3416)
 - *(coordinator)* Fixed a flacky test by closing the ftxInvalidityProofService in the ForcedTransactionsApp (#3438)
 - *(prover)* Resolve data race in limitless prover (#3442)
+- *(Maru)* Fixed a bug when simultaneous mutual connection attempts r… (#3439)
 
 ### 🚜 Refactor
 
