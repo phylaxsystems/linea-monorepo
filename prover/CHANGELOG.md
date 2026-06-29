@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- *(prover)* Bit-decompose limbs by absolute row, not compact position (#3464)
 ## [1.0.3] - 2026-06-29
 
 ### 🐛 Bug Fixes

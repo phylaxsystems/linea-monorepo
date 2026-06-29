@@ -32,6 +32,7 @@
 - *(Maru)* Fixed a bug when simultaneous mutual connection attempts r… (#3439)
 - *(prover)* Index-out-of-range panic in merkle proof verification (#3453)
 - *(coordinator)* Forced transactions concurrency update (#3444)
+- *(prover)* Bit-decompose limbs by absolute row, not compact position (#3464)
 
 ### 🚜 Refactor
 
