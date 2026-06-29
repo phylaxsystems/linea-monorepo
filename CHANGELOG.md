@@ -72,3 +72,4 @@
 - Update gnark to a3ad59ad083caac7691cba84a497d4d7c1759d2a (#3402)
 - *(deps)* Bump Node and pnpm (#3449)
 - *(deps)* Safe updates, exact version pinning, and override housekeeping (#3457)
+- *(coordinator)* Update kotlin to v2.4 (#3454)
