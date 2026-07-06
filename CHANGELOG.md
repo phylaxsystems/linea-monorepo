@@ -6,6 +6,7 @@
 - *(linea-besu)* Forced transactions integration with security policy transaction selector (#3295)
 - *(coordinator)* Add config documentation annotations (#3463)
 - *(coordinator)* First draft of risc-v prover client (#3269)
+- *(coordinator)* Add config schema walker for docs generation (#3488)
 
 ### 🐛 Bug Fixes
 

@@ -1,5 +1,9 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- *(coordinator)* Add config schema walker for docs generation (#3488)
+
 ### 🐛 Bug Fixes
 
 - *(coordinator)* Pretty-print startup config logs (#3203)
