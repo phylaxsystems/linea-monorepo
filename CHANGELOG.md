@@ -40,6 +40,7 @@
 - *(prover)* Reserve a padding row in the state-manager modules (#3470)
 - *(coordinator)* Bound eth_getLogs queries to provider block-range limits (#3473)
 - *(coordinator)* Pretty-print startup config logs (#3203)
+- *(coordinator)* Bound eth_getLogs in finalized-state lookup (#3519)
 
 ### 🚜 Refactor
 

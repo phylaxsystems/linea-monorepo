@@ -7,6 +7,7 @@
 ### 🐛 Bug Fixes
 
 - *(coordinator)* Pretty-print startup config logs (#3203)
+- *(coordinator)* Bound eth_getLogs in finalized-state lookup (#3519)
 ## [0.2.0] - 2026-07-03
 
 ### 🚀 Features
