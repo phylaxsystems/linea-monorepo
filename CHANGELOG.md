@@ -41,6 +41,7 @@
 - *(coordinator)* Bound eth_getLogs queries to provider block-range limits (#3473)
 - *(coordinator)* Pretty-print startup config logs (#3203)
 - *(coordinator)* Bound eth_getLogs in finalized-state lookup (#3519)
+- *(coordinator)* Bound eth_getLogs in deployment-block lookup (#3520)
 
 ### 🚜 Refactor
 
