@@ -1,31 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-# Required parameters
-OWNER="phylaxsystems"
-REPO="credible-layer-besu-plugin"
-GROUP_ID="net.phylax.credible"
-ARTIFACT_ID="credible-layer-besu-plugin"
-VERSION="0.3.0-f6906f3f"
+COMMIT="f47675d020065e2f81153172f768dd7ca7214297"
+VERSION="0.3.0-${COMMIT:0:8}"
+SOURCE_DIR=$(mktemp -d)
+OUTPUT="./linea-besu/besu/plugins/credible-layer-besu-plugin-$VERSION.jar"
+trap 'rm -rf "$SOURCE_DIR"' EXIT
 
-OUTPUT_LOC="./linea-besu/besu/plugins/$ARTIFACT_ID-$VERSION.jar"
-
-# Download using curl
-response=$(curl -s -w "%{http_code}" -L -H "Authorization: token $GH_TOKEN" \
-     -H "Accept: application/octet-stream" \
-     "https://maven.pkg.github.com/$OWNER/$REPO/$GROUP_ID/$ARTIFACT_ID/$VERSION/$ARTIFACT_ID-$VERSION.jar" \
-     -o "$OUTPUT_LOC")
-
-http_code=${response: -3}
-
-if [ "$http_code" -eq 200 ]; then
-    echo "✅ Download successful!"
-else
-    echo "❌ Download failed with HTTP code: $http_code"
-    echo "💡 Check:"
-    echo "   - Token has 'read:packages' scope"
-    echo "   - You have access to the repository"
-    echo "   - Package coordinates are correct"
-    exit 1
-fi
+curl -fsSL "https://api.github.com/repos/phylaxsystems/credible-layer-besu-plugin/tarball/$COMMIT" \
+  | tar -xz --strip-components=1 -C "$SOURCE_DIR"
+"$SOURCE_DIR/gradlew" -p "$SOURCE_DIR" shadowJar -PcommitHash="${COMMIT:0:8}"
+mkdir -p "$(dirname "$OUTPUT")"
+cp "$SOURCE_DIR/build/libs/credible-layer-besu-plugin-$VERSION.jar" "$OUTPUT"
