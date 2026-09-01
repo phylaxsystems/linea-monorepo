@@ -40,6 +40,7 @@ dependencies {
   implementation project(":tracer:arithmetization")
   implementation "build.linea:blob-compressor:${libs.versions.blobCompressor.get()}"
   implementation "build.linea.internal:kotlin:${libs.versions.lineaKotlin.get()}"
+  implementation "org.web3j:core:${libs.versions.web3j.get()}"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}"
   // Used by LineaLivenessTxBuilder (org.web3j.crypto.*, abi.*, utils.Numeric). Declared
   // explicitly so the jars are bundled into the plugin distribution; web3j otherwise only
@@ -61,6 +62,10 @@ dependencies {
 }
 
 apply from: lineaSequencerProject.file("gradle/dist.gradle")
+
+jar {
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
 
 test {
   useJUnitPlatform()
